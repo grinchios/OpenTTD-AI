@@ -1,4 +1,4 @@
-class Grinchios extends AIController
+class Mungo extends AIController
 {
   constructor()
   {
@@ -8,7 +8,7 @@ class Grinchios extends AIController
 /**
 * Check if we have enough money (via loan and on bank).
 */
-function Grinchios::HasMoney(money)
+function Mungo::HasMoney(money)
 {
 if (AICompany.GetBankBalance(AICompany.COMPANY_SELF) + (AICompany.GetMaxLoanAmount() - AICompany.GetLoanAmount()) > money) return true;
 return false;
@@ -17,7 +17,7 @@ return false;
 /**
  * Get the amount of money requested, loan if needed.
  */
-function Grinchios::GetMoney(money)
+function Mungo::GetMoney(money)
 {
 	if (!this.HasMoney(money)) return;
 	if (AICompany.GetBankBalance(AICompany.COMPANY_SELF) > money) return;
@@ -28,9 +28,9 @@ function Grinchios::GetMoney(money)
 	AICompany.SetLoanAmount(loan);
 }
 
-function Grinchios::Start()
+function Mungo::Start()
 {
-  AILog.Info("Grinchios Started.");
+  AILog.Info("Mungo Started.");
   SetCompanyName();
 
   //set a legal railtype. 
@@ -44,25 +44,25 @@ function Grinchios::Start()
   }
 }
 
-function Grinchios::Save()
+function Mungo::Save()
 {
   local table = {};	
   //TODO: Add your save data to the table.
   return table;
 }
 
-function Grinchios::Load(version, data)
+function Mungo::Load(version, data)
 {
   AILog.Info(" Loaded");
   //TODO: Add your loading routines.
 }
 
 
-function Grinchios::SetCompanyName()
+function Mungo::SetCompanyName()
 {
-  if(!AICompany.SetName("Grinchios")) {
+  if(!AICompany.SetName("Mungo")) {
     local i = 2;
-    while(!AICompany.SetName("Grinchios #" + i)) {
+    while(!AICompany.SetName("Mungo #" + i)) {
       i = i + 1;
       if(i > 255) break;
     }

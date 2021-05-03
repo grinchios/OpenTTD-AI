@@ -1,12 +1,12 @@
-class Grinchios extends AIInfo 
+class Mungo extends AIInfo 
 {
-  function GetAuthor()      { return "Callum Pritchard"; }
-  function GetName()        { return "Grinchios"; }
+  function GetAuthor()      { return "Grinchios"; }
+  function GetName()        { return "Mungo"; }
   function GetDescription() { return "Testing with aircrafts"; }
-  function GetVersion()     { return 1; }
-  function GetDate()        { return "2018-12-14"; }
-  function CreateInstance() { return "Grinchios"; }
-  function GetShortName()   { return "CHIO"; }
+  function GetVersion()     { return 2; }
+  function GetDate()        { return "2021-05-03"; }
+  function CreateInstance() { return "Mungo"; }
+  function GetShortName()   { return "MUNG"; }
   
   function GetSettings() {
   AddSetting({name = "min_town_size",
@@ -21,4 +21,4 @@ class Grinchios extends AIInfo
   }
 }
 
-RegisterAI(Grinchios());
+RegisterAI(Mungo());

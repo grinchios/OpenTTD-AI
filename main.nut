@@ -60,7 +60,7 @@ function Mungo::GetMoney(money)
 
 	local loan = money - AICompany.GetBankBalance(AICompany.COMPANY_SELF) + AICompany.GetLoanInterval() + AICompany.GetLoanAmount();
 	loan = loan - loan % AICompany.GetLoanInterval();
-	AILog.Info("Need a loan to get " + money + ": " + loan);
+	AILog.Info("Need a loan to get " + money + " : " + loan);
 	AICompany.SetLoanAmount(loan);
 }
 
@@ -135,9 +135,11 @@ function Mungo::BuildAircraft(tile_1, tile_2)
 	engine_list.Valuate(AIEngine.GetPrice);
 	engine_list.KeepBelowValue(balance < 300000 ? 50000 : (balance < 1000000 ? 300000 : 1000000));
 
+  /* Filter planes by passengers only */
 	engine_list.Valuate(AIEngine.GetCargoType);
 	engine_list.KeepValue(this.passenger_cargo_id);
 
+  /* Get the biggest plane for our cargo */
 	engine_list.Valuate(AIEngine.GetCapacity);
 	engine_list.KeepTop(1);
 
@@ -156,7 +158,7 @@ function Mungo::BuildAircraft(tile_1, tile_2)
 		return -6;
 	}
   
-	/* Send him on his way */
+	/* Send it on it's way */
 	AIOrder.AppendOrder(vehicle, tile_1, AIOrder.AIOF_NONE);
 	AIOrder.AppendOrder(vehicle, tile_2, AIOrder.AIOF_NONE);
 	AIVehicle.StartStopVehicle(vehicle);
@@ -266,28 +268,29 @@ function Mungo::ManageAirRoutes()
 	list.Valuate(AIVehicle.GetProfitLastYear);
 
 	for (local i = list.Begin(); list.HasNext(); i = list.Next())
-  {
+   {
 		local profit = list.GetValue(i);
 
 		/* Profit last year and this year bad? Let's sell the vehicle */
 		if (profit < 10000 && AIVehicle.GetProfitThisYear(i) < 10000)
-    {
+    	{
 			/* Send the vehicle to depot if we didn't do so yet */
 			if (!vehicle_to_depot.rawin(i) || vehicle_to_depot.rawget(i) != true)
-      {
+       		{
 				AILog.Info("Sending " + i + " to depot as profit is: " + profit + " / " + AIVehicle.GetProfitThisYear(i));
 				AIVehicle.SendVehicleToDepot(i);
 				vehicle_to_depot.rawset(i, true);
 			}
 		}
 		/* Try to sell it over and over till it really is in the depot */
-    // Is the vehicle with ID i in the depot?
+
+		// Is the vehicle with ID i in the depot?
 		if (vehicle_to_depot.rawin(i) && vehicle_to_depot.rawget(i) == true)
-    {
+		{
 			if (AIVehicle.SellVehicle(i))
-      {
+			{
 				AILog.Info("Selling " + i + " as it is finally in a depot.");
-        
+		
 				/* Check if we are the last one serving those airports; else sell the airports */
 				local list2 = AIVehicleList_Station(AIStation.GetStationID(this.route_1.GetValue(i)));
 				if (list2.Count() == 0) this.SellAirports(i);
@@ -379,29 +382,28 @@ function Mungo::SellAirports(i)
 function Mungo::HandleEvents()
 {
 	while (AIEventController.IsEventWaiting())
-  {
+   {
 		local e = AIEventController.GetNextEvent();
 		switch (e.GetEventType()) {
 			case AIEvent.AI_ET_VEHICLE_CRASHED:
-      {
+       		{
 				local ec = AIEventVehicleCrashed.Convert(e);
 				local v = ec.GetVehicleID();
 				AILog.Info("We have a crashed vehicle (" + v + "), buying a new one as replacement");
 
-        // removes the crashed vehicle from the vehicle array
-        for (local i = 0; i < this.vehicle_array.len(); i++)
-        {
-          if (this.vehicle_array == v)
-          {
-            this.vehicle_array.remove(i);
-            break
-          }
-        }
+				// removes the crashed vehicle from the vehicle array
+				for (local i = 0; i < this.vehicle_array.len(); i++)
+				{
+				if (this.vehicle_array == v)
+				{
+					this.vehicle_array.remove(i);
+					break
+				}
+				}
 
 				this.BuildAircraft(this.route_1.GetValue(v), this.route_2.GetValue(v));
 				this.route_1.RemoveItem(v);
 				this.route_2.RemoveItem(v);
-
         
 			} break;
 
@@ -414,17 +416,17 @@ function Mungo::HandleEvents()
 function Mungo::Start()
 {
 	if (this.passenger_cargo_id == -1)
-  {
+    {
 		AILog.Error("Mungo could not find the passenger cargo");
 		return;
 	}
 
 	/* Give the boy a name */
 	if (!AICompany.SetName("Mungo")) 
-  {
+    {
 		local i = 2;
 		while (!AICompany.SetName("Mungo #" + i)) 
-    {
+    	{
 			i++;
 		}
 	}
@@ -446,19 +448,19 @@ function Mungo::Start()
 
 	/* Let's go on for ever */
 	while (true)
-  {
+  	{
 		/* Once in a while, with enough money, try to build something */
 		if ((this.ticker % this.delay_build_airport_route == 0 || this.ticker == 0) && this.HasMoney(100000))
-    {
+		{
 			local ret = this.BuildAirportRoute();
 			if (ret == -1 && this.ticker != 0)
-      {
+      		{
 				/* No more route found, delay even more before trying to find an other */
 				this.delay_build_airport_route = 10000;
 			}
 			else if (ret < 0 && this.ticker == 0)
-      {
-				/* The AI failed to build a first airport and is deemed */
+      		{
+				/* The AI failed to build a first airport and is deemed a failure */
 				AICompany.SetName("Failed " + this.name);
 				AILog.Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
 				AICompany.SetLoanAmount(0);
@@ -468,27 +470,27 @@ function Mungo::Start()
 
 		/* Manage the routes once in a while */
 		if (this.ticker % 2000 == 0)
-    {
+    	{
 			this.ManageAirRoutes();
 		}
 
 		/* Try to get rid of our loan once in a while */
 		if (this.ticker % 5000 == 0)
-    {
+    	{
 			AICompany.SetLoanAmount(0);
 		}
 
 		/* Check for events once in a while */
 		if (this.ticker % 100 == 0)
-    {
+    	{
 			this.HandleEvents();
 		}
 
-    // Create new airplane if money permits and ticker is running
-    if (this.ticker % 2000 == 0 && this.BankBalance() > 175000 && this.towns_used.Count() > 2 && (this.towns_used.Count() * 4) < this.vehicle_array.len())
-    {
-      this.CreateNewAirRoutes();
-    }
+		// Create new airplane if money permits and ticker is running
+		if (this.ticker % 2000 == 0 && this.BankBalance() > 175000 && this.towns_used.Count() > 2 && (this.towns_used.Count() * 4) < this.vehicle_array.len())
+		{
+		this.CreateNewAirRoutes();
+		}
 
 		/* Make sure we do not create infinite loops */
 		Sleep(sleepingtime);
@@ -498,106 +500,106 @@ function Mungo::Start()
 
 function Mungo::Save()
 {
-  local towns_used_items_save = [];
-  local towns_used_values_save = [];
-  for (local i = towns_used.Begin(); towns_used.HasNext(); i = towns_used.Next())
-  {
-    towns_used_items_save.append(i);
-    towns_used_values_save.append(towns_used.GetValue(i));
-  }
+	local towns_used_items_save = [];
+	local towns_used_values_save = [];
+	for (local i = towns_used.Begin(); towns_used.HasNext(); i = towns_used.Next())
+	{
+	towns_used_items_save.append(i);
+	towns_used_values_save.append(towns_used.GetValue(i));
+	}
 
-  local route_1_items_save = [];
-  local route_1_values_save = [];
-  for (local i = route_1.Begin(); route_1.HasNext(); i = route_1.Next())
-  {
-    route_1_items_save.append(i);
-    route_1_values_save.append(route_1.GetValue(i));
-  }
+	local route_1_items_save = [];
+	local route_1_values_save = [];
+	for (local i = route_1.Begin(); route_1.HasNext(); i = route_1.Next())
+	{
+	route_1_items_save.append(i);
+	route_1_values_save.append(route_1.GetValue(i));
+	}
 
-  local route_2_items_save = [];
-  local route_2_values_save = [];
-  for (local i = route_2.Begin(); route_2.HasNext(); i = route_2.Next())
-  {
-    route_2_items_save.append(i);
-    route_2_values_save.append(route_2.GetValue(i));
-  }
+	local route_2_items_save = [];
+	local route_2_values_save = [];
+	for (local i = route_2.Begin(); route_2.HasNext(); i = route_2.Next())
+	{
+	route_2_items_save.append(i);
+	route_2_values_save.append(route_2.GetValue(i));
+	}
 
-  // dictionary of data to save in the savefile
-  local table =  {towns_used_items  = towns_used_items_save, 
-                  towns_used_values = towns_used_values_save,
-                  route_1_items     = route_1_items_save,
-                  route_1_values    = route_1_values_save,
-                  route_2_items     = route_2_items_save,
-                  route_2_values    = route_2_values_save,
-                  distance_of_route = this.distance_of_route,
-                  vehicle_to_depot  = this.vehicle_to_depot,
-                  vehicle_array     = this.vehicle_array,
-                  ticker            = this.ticker};
-  return table;
+	// dictionary of data to save in the savefile
+	local table =  {towns_used_items  = towns_used_items_save, 
+					towns_used_values = towns_used_values_save,
+					route_1_items     = route_1_items_save,
+					route_1_values    = route_1_values_save,
+					route_2_items     = route_2_items_save,
+					route_2_values    = route_2_values_save,
+					distance_of_route = this.distance_of_route,
+					vehicle_to_depot  = this.vehicle_to_depot,
+					vehicle_array     = this.vehicle_array,
+					ticker            = this.ticker};
+	return table;
 }
 
 function Mungo::Load(version, data)
 {
-  local towns_used_items_save = [];
-  local towns_used_values_save = [];
-  local route_1_items_save = [];
-  local route_1_values_save = [];
-  local route_2_items_save = [];
-  local route_2_values_save = [];
+	local towns_used_items_save = [];
+	local towns_used_values_save = [];
+	local route_1_items_save = [];
+	local route_1_values_save = [];
+	local route_2_items_save = [];
+	local route_2_values_save = [];
 
-  // if the data exists in the save file then load it into the variable
-  if (data.rawin("towns_used_items")) {
-    towns_used_items_save = data.rawget("towns_used_items");
-  }
+	// if the data exists in the save file then load it into the variable
+	if (data.rawin("towns_used_items")) {
+	towns_used_items_save = data.rawget("towns_used_items");
+	}
 
-  if (data.rawin("towns_used_values")) {
-    towns_used_values_save = data.rawget("towns_used_values");
-  }
+	if (data.rawin("towns_used_values")) {
+	towns_used_values_save = data.rawget("towns_used_values");
+	}
 
-  if (data.rawin("route_1_items")) {
-    route_1_items_save = data.rawget("route_1_items");
-  }
+	if (data.rawin("route_1_items")) {
+	route_1_items_save = data.rawget("route_1_items");
+	}
 
-  if (data.rawin("route_1_values")) {
-   route_1_values_save = data.rawget("route_1_values");
-  }
+	if (data.rawin("route_1_values")) {
+	route_1_values_save = data.rawget("route_1_values");
+	}
 
-  if (data.rawin("route_2_items")) {
-    route_2_items_save = data.rawget("route_2_items");
-  }
+	if (data.rawin("route_2_items")) {
+	route_2_items_save = data.rawget("route_2_items");
+	}
 
-  if (data.rawin("route_2_values")) {
-    route_2_values_save = data.rawget("route_2_values");
-  }
-  
-  if (data.rawin("distance_of_route")) {
-    this.distance_of_route = data.rawget("distance_of_route");
-  }
+	if (data.rawin("route_2_values")) {
+	route_2_values_save = data.rawget("route_2_values");
+	}
 
-  if (data.rawin("vehicle_to_depot")) {
-    this.vehicle_to_depot = data.rawget("vehicle_to_depot");
-  }
+	if (data.rawin("distance_of_route")) {
+	this.distance_of_route = data.rawget("distance_of_route");
+	}
 
-  if (data.rawin("vehicle_array")) {
-    this.vehicle_array = data.rawget("vehicle_array");
-  }
+	if (data.rawin("vehicle_to_depot")) {
+	this.vehicle_to_depot = data.rawget("vehicle_to_depot");
+	}
 
-  if (data.rawin("ticker")) {
-    this.ticker = data.rawget("ticker");
-  }
-  
-  for (local i = 0; i < towns_used_items_save.len(); i++)
-  {
-    this.towns_used.AddItem(towns_used_items_save[i], towns_used_values_save[i])
-  }
+	if (data.rawin("vehicle_array")) {
+	this.vehicle_array = data.rawget("vehicle_array");
+	}
 
-  for (local i = 0; i < route_1_items_save.len(); i++)
-  {
-    this.route_1.AddItem(route_1_items_save[i], route_1_values_save[i])
-  }
+	if (data.rawin("ticker")) {
+	this.ticker = data.rawget("ticker");
+	}
 
-  for (local i = 0; i < route_2_items_save.len(); i++)
-  {
-    this.route_2.AddItem(route_2_items_save[i], route_2_values_save[i])
-  }
+	for (local i = 0; i < towns_used_items_save.len(); i++)
+	{
+	this.towns_used.AddItem(towns_used_items_save[i], towns_used_values_save[i])
+	}
+
+	for (local i = 0; i < route_1_items_save.len(); i++)
+	{
+	this.route_1.AddItem(route_1_items_save[i], route_1_values_save[i])
+	}
+
+	for (local i = 0; i < route_2_items_save.len(); i++)
+	{
+	this.route_2.AddItem(route_2_items_save[i], route_2_values_save[i])
+	}
 }

@@ -33,10 +33,3 @@ class Mungo extends AIInfo
 }
 
 RegisterAI(Mungo());
-
-// TODO
-// Check airport type and upgrade it if avaliable
-// If airports can't be built anymore then aggressively check for upgrades
-// Helicopters
-// Look into other types of goods
-// Roads

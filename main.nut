@@ -40,11 +40,11 @@ function Mungo::BuildAirportRoute() {
 
 	Info("Trying to build an airport route");
 
-	local tile_1 = this.FindSuitableAirportSpot(airport_type, 0);
+	local tile_1 = this.airHelper.FindSuitableLocation(airport_type, 0);
 
 	if (tile_1 < 0) return -1;
 
-	local tile_2 = this.FindSuitableAirportSpot(airport_type, tile_1);
+	local tile_2 = this.airHelper.FindSuitableLocation(airport_type, tile_1);
 
 	if (tile_2 < 0) {
 		this.towns_used.RemoveValue(tile_1);
@@ -70,7 +70,7 @@ function Mungo::BuildAirportRoute() {
 		return -4;
 	}
 
-	local ret = this.BuildAircraft(tile_1, tile_2);
+	local ret = this.AirHelper.BuildNewVehicle(tile_1, tile_2);
 	if (ret < 0) {
 		AIAirport.RemoveAirport(tile_1);
 		AIAirport.RemoveAirport(tile_2);
@@ -86,139 +86,6 @@ function Mungo::BuildAirportRoute() {
 		Info("Done building a route");
 		return ret;
 	}
-}
-
-function Mungo::BuildAircraft(tile_1, tile_2) {
-	// Build an aircraft with orders from tile_1 to tile_2.
-	// The best available aircraft of that time will be bought.
-
-	// Build an aircraft
-	local hangar = AIAirport.GetHangarOfAirport(tile_1);
-
-	local engine = null;
-
-	local engine_list = AIEngineList(AIVehicle.VT_AIR);
-
-	// When bank balance < 300000, buy cheaper planes
-	local balance = BankBalance();
-	engine_list.Valuate(AIEngine.GetPrice);
-	engine_list.KeepBelowValue(balance < 300000 ? 50000 : (balance < 1000000 ? 300000 : 1000000));
-
-  	// Filter planes by passengers only
-	engine_list.Valuate(AIEngine.GetCargoType);
-	engine_list.KeepValue(this.passenger_cargo_id);
-
-  	// Get the biggest plane for our cargo
-	engine_list.Valuate(AIEngine.GetCapacity);
-	engine_list.KeepTop(1);
-
-	engine = engine_list.Begin();
-
-	if (!AIEngine.IsValidEngine(engine)) {
-		Error("Couldn't find a suitable engine");
-		return -5;
-	}
-
-	local vehicle = AIVehicle.BuildVehicle(hangar, engine);
-	if (!AIVehicle.IsValidVehicle(vehicle)) {
-		Error("Couldn't build the aircraft");
-		return -6;
-	}
-  
-	// Send it on it's way
-	AIOrder.AppendOrder(vehicle, tile_1, AIOrder.AIOF_NONE);
-	AIOrder.AppendOrder(vehicle, tile_2, AIOrder.AIOF_NONE);
-	AIVehicle.StartStopVehicle(vehicle);
-	this.distance_of_route.rawset(vehicle, AIMap.DistanceManhattan(tile_1, tile_2));
-
-  	this.vehicle_array.append(vehicle);
-
-	this.route_1.AddItem(vehicle, tile_1);
-	this.route_2.AddItem(vehicle, tile_2);
-
-	Info("Done building an aircraft");
-
-	return 0;
-}
-
-function Mungo::FindSuitableAirportSpot(airport_type, center_tile) {
-	// Find a suitable spot for an airport, walking all towns hoping to find one.
-	// When a town is used, it is marked as such and not re-used.
-
-	local airport_x, airport_y, airport_rad;
-
-	airport_x = AIAirport.GetAirportWidth(airport_type);
-	airport_y = AIAirport.GetAirportHeight(airport_type);
-	airport_rad = AIAirport.GetAirportCoverageRadius(airport_type);
-
-	local town_list = AITownList();
-
-	// Remove all the towns we already used
-	town_list.RemoveList(this.towns_used);
-
-	town_list.Valuate(AITown.GetPopulation);
-	town_list.KeepAboveValue(GetSetting("min_town_size"));
-
-	// Keep the best 10, if we can't find 2 stations in there, just leave it anyway
-	//town_list.KeepTop(GetSetting("town_count"));
-	//town_list.Valuate(AIBase.RandItem);
-
-	// Now find 2 suitable towns
-	for (local town = town_list.Begin(); town_list.HasNext(); town = town_list.Next()) {
-		/* Don't make this a CPU hog */
-		Sleep(1);
-
-    	if (this.towns_used.HasItem(town)) continue;
-
-		local tile = AITown.GetLocation(town);
-
-		// Create a 30x30 grid around the core of the town and see if we can find a spot for a small airport
-		local list = AITileList();
-
-		// XXX -- We assume we are more than 15 tiles away from the border!
-		list.AddRectangle(tile - AIMap.GetTileIndex(15, 15), tile + AIMap.GetTileIndex(15, 15));
-		list.Valuate(AITile.IsBuildableRectangle, airport_x, airport_y);
-		list.KeepValue(1);
-
-		if (center_tile != 0) {
-			// If we have a tile defined, we don't want to be within 25 tiles of this tile
-			list.Valuate(AITile.GetDistanceSquareToTile, center_tile);
-			list.KeepAboveValue(625);
-		}
-
-		// Sort on acceptance, remove places that don't have acceptance
-		list.Valuate(AITile.GetCargoAcceptance, this.passenger_cargo_id, airport_x, airport_y, airport_rad);
-		list.RemoveBelowValue(10);
-
-		// Couldn't find a suitable place for this town, skip to the next
-		if (list.Count() == 0) continue; 
-
-		// Walk all the tiles and see if we can build the airport at all
-		{
-      		local test = AITestMode();
-			local good_tile = 0;
-
-			for (tile = list.Begin(); list.HasNext(); tile = list.Next()) {
-				Sleep(1);
-				if (!AIAirport.BuildAirport(tile, airport_type, AIStation.STATION_NEW)) continue;
-				good_tile = tile;
-				break;
-			}
-
-			// Did we found a place to build the airport on?
-			if (good_tile == 0) continue;
-		}
-
-		Info("Found a good spot for an airport in town " + town + " at tile " + tile);
-
-		// Make the town as used, so we don't use it again
-		this.towns_used.AddItem(town, tile);
-
-		return tile;
-	}
-
-	Info("Couldn't find a suitable town to build an airport in");
-	return -1;
 }
 
 function Mungo::ManageAirRoutes() {
@@ -284,7 +151,7 @@ function Mungo::ManageAirRoutes() {
 		// Make sure we have enough money
 		GetMoney(50000);
 
-		return this.BuildAircraft(this.route_1.GetValue(v), this.route_2.GetValue(v));
+		return this.AirHelper.BuildNewVehicle(this.route_1.GetValue(v), this.route_2.GetValue(v));
 	}
 }
 
@@ -302,7 +169,7 @@ function Mungo::CreateNewAirRoutes() {
   local tile_1 = this.route_1.GetValue(route_1_rand)
   local tile_2 = this.route_2.GetValue(route_2_rand)
 
-  local ret = this.BuildAircraft(tile_1, tile_2);
+  local ret = this.AirHelper.BuildNewVehicle(tile_1, tile_2);
 
   if (ret == 0) {
     Info("Mungo bought a new aircraft");

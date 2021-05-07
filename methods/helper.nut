@@ -3,7 +3,7 @@ class Helper {
 };
 
 function Helper::FindSuitableLocation(){}
-function Helper::BuildNewRoute(){}
+function Helper::BuildNewVehicle(){}
 function Helper::ManageOldRoute(){}
 function Helper::BuyDepot(){}
 function Helper::SellDepot(){}

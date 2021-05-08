@@ -6,13 +6,13 @@ class Mungo extends AIController {
 	route_1 = null;
 	route_2 = null;
 	sleepingtime = null
-	distance_of_route = {};
 	vehicle_to_depot = {};
 	vehicle_array = [];
 	delay_build_airport_route = 1000;
 	passenger_cargo_id = -1;
+	mail_cargo_id = -1
 	ticker = null;
-	airHelper = null;
+	air_helper = null;
 
 	constructor() {
 		this.towns_used = AIList();
@@ -25,7 +25,8 @@ class Mungo extends AIController {
 		for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
 			if (AICargo.HasCargoClass(i, AICargo.CC_PASSENGERS)) {
 				this.passenger_cargo_id = i;
-				break;
+			} else if (AICargo.HasCargoClass(i, AICargo.CC_MAIL)) {
+				this.mail_cargo_id = i;
 			}
 		}
 
@@ -40,11 +41,11 @@ function Mungo::BuildAirportRoute() {
 
 	Info("Trying to build an airport route");
 
-	local tile_1 = this.airHelper.FindSuitableLocation(airport_type, 0);
+	local tile_1 = this.air_helper.FindSuitableLocation(airport_type, 0);
 
 	if (tile_1 < 0) return -1;
 
-	local tile_2 = this.airHelper.FindSuitableLocation(airport_type, tile_1);
+	local tile_2 = this.air_helper.FindSuitableLocation(airport_type, tile_1);
 
 	if (tile_2 < 0) {
 		this.towns_used.RemoveValue(tile_1);
@@ -56,72 +57,40 @@ function Mungo::BuildAirportRoute() {
 
 	// Build the airports for real
 	if (!AIAirport.BuildAirport(tile_1, airport_type, AIStation.STATION_NEW)) {
-		Error("Although the testing told us we could build 2 airports, it still failed on the first airport at tile " + tile_1 + ".");
+		Error("Failed on the first airport at tile " + tile_1 + ".");
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
 		return -3;
 	}
 
 	if (!AIAirport.BuildAirport(tile_2, airport_type, AIStation.STATION_NEW)) {
-		Error("Although the testing told us we could build 2 airports, it still failed on the second airport at tile " + tile_2 + ".");
+		Error("Failed on the second airport at tile " + tile_2 + ".");
 		AIAirport.RemoveAirport(tile_1);
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
 		return -4;
 	}
 
-	local ret = this.AirHelper.BuildNewVehicle(tile_1, tile_2);
-	if (ret < 0) {
+	if (!this.air_helper.BuildNewVehicle(tile_1, tile_2)) {
+		Error("Removing airports due to error");
 		AIAirport.RemoveAirport(tile_1);
 		AIAirport.RemoveAirport(tile_2);
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
-		return ret;
+		return false;
 	} else {
 		local location = AIStation.GetStationID(tile_1);
-		airHelper.SetDepotName(location, 0, 0);
+		air_helper.SetDepotName(location, 0, 0);
 		
 		location = AIStation.GetStationID(tile_2);
-		airHelper.SetDepotName(location, 0, 0);
+		air_helper.SetDepotName(location, 0, 0);
 		Info("Done building a route");
-		return ret;
+		return true;
 	}
 }
 
 function Mungo::ManageAirRoutes() {
 	local list = AIVehicleList();
-	list.Valuate(AIVehicle.GetAge);
-
-	// Give the plane at least 2 years to make a difference
-	list.KeepAboveValue(365 * 2);
-	list.Valuate(AIVehicle.GetProfitLastYear);
-
-	for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
-		local profit = list.GetValue(i);
-
-		// Profit last year and this year bad? Let's sell the vehicle
-		if (profit < 10000 && AIVehicle.GetProfitThisYear(i) < 10000) {
-			// Send the vehicle to depot if we didn't do so yet
-			if (!vehicle_to_depot.rawin(i) || vehicle_to_depot.rawget(i) != true) {
-				Info("Sending " + i + " to depot as profit is: " + profit + " / " + AIVehicle.GetProfitThisYear(i));
-				AIVehicle.SendVehicleToDepot(i);
-				vehicle_to_depot.rawset(i, true);
-			}
-		}
-		// Try to sell it over and over till it really is in the depot
-
-		// Is the vehicle with ID i in the depot?
-		if (vehicle_to_depot.rawin(i) && vehicle_to_depot.rawget(i) == true) {
-			if (AIVehicle.SellVehicle(i)) {
-				Info("Selling " + i + " as it is finally in a depot.");
-		
-				// Check if we are the last one serving those airports; else sell the airports
-				local list2 = AIVehicleList_Station(AIStation.GetStationID(this.route_1.GetValue(i)));
-				if (list2.Count() == 0) this.SellAirports(i);
-				vehicle_to_depot.rawdelete(i);
-			}
-		}
-	}
 
 	// Don't try to add planes when we are short on cash
 	if (!HasMoney(50000)) return;
@@ -134,7 +103,7 @@ function Mungo::ManageAirRoutes() {
 		local list2 = AIVehicleList_Station(i);
 		// No vehicles going to this station, abort and sell
 		if (list2.Count() == 0) {
-			this.SellAirports(i);
+			this.air_helper.SellAirports(i);
 			continue;
 		};
 
@@ -151,7 +120,7 @@ function Mungo::ManageAirRoutes() {
 		// Make sure we have enough money
 		GetMoney(50000);
 
-		return this.AirHelper.BuildNewVehicle(this.route_1.GetValue(v), this.route_2.GetValue(v));
+		return this.air_helper.BuildNewVehicle(this.route_1.GetValue(v), this.route_2.GetValue(v));
 	}
 }
 
@@ -169,42 +138,15 @@ function Mungo::CreateNewAirRoutes() {
   local tile_1 = this.route_1.GetValue(route_1_rand)
   local tile_2 = this.route_2.GetValue(route_2_rand)
 
-  local ret = this.AirHelper.BuildNewVehicle(tile_1, tile_2);
-
-  if (ret == 0) {
+  if (!this.air_helper.BuildNewVehicle(tile_1, tile_2)) {
     Info("Mungo bought a new aircraft");
   } else {
     Info("Error occured whilst buying new aircraft");
   }
 }
 
-function Mungo::SellAirports(i) {
-	// Sells the airports from route index i
-	// Removes towns from towns_used list too
-
-	// Remove the airports
-	Info("Removing airports as nobody serves them anymore.");
-	AIAirport.RemoveAirport(this.route_1.GetValue(i));
-	AIAirport.RemoveAirport(this.route_2.GetValue(i));
-
-	// Free the entries
-	this.towns_used.RemoveValue(this.route_1.GetValue(i));
-	this.towns_used.RemoveValue(this.route_2.GetValue(i));
-
-	// Remove the route
-	this.route_1.RemoveItem(i);
-	this.route_2.RemoveItem(i);
-}
-
 function Mungo::Start() {
-	if (this.passenger_cargo_id == -1) {
-		Error("Mungo could not find the passenger cargo");
-		return;
-	}
-
-	NameCompany();
-
-	this.airHelper = AirHelper();
+	if (!StartUp()) {return;}
 
 	// Let's go on for ever
 	for(local i = 0; true; i++) {
@@ -213,10 +155,10 @@ function Mungo::Start() {
 		/* Once in a while, with enough money, try to build something */
 		if ((this.ticker % this.delay_build_airport_route == 0 || this.ticker == 0) && HasMoney(100000)) {
 			local ret = this.BuildAirportRoute();
-			if (ret == -1 && this.ticker != 0) {
+			if (!ret && this.ticker != 0) {
 				/* No more route found, delay even more before trying to find an other */
 				this.delay_build_airport_route = 10000;
-			} else if (ret < 0 && this.ticker == 0) {
+			} else if (!ret && this.ticker == 0) {
 				/* The AI failed to build a first airport and is deemed a failure */
 				AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
 				Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
@@ -229,6 +171,7 @@ function Mungo::Start() {
 
 		// Manage the routes once in a while
 		if (this.ticker % 2000 == 0)
+			this.air_helper.SellNegativeVehicles();
 			this.ManageAirRoutes();
 
 		// Create new airplane if money permits and ticker is running
@@ -270,7 +213,6 @@ function Mungo::Save() {
 					route_1_values    = route_1_values_save,
 					route_2_items     = route_2_items_save,
 					route_2_values    = route_2_values_save,
-					distance_of_route = this.distance_of_route,
 					vehicle_to_depot  = this.vehicle_to_depot,
 					vehicle_array     = this.vehicle_array,
 					ticker            = this.ticker};
@@ -303,9 +245,6 @@ function Mungo::Load(version, data) {
 
 	if (data.rawin("route_2_values"))
 		route_2_values_save = data.rawget("route_2_values");
-
-	if (data.rawin("distance_of_route"))
-		this.distance_of_route = data.rawget("distance_of_route");
 
 	if (data.rawin("vehicle_to_depot"))
 		this.vehicle_to_depot = data.rawget("vehicle_to_depot");

@@ -30,7 +30,5 @@ function RepayLoan() {
         local newLoan = AICompany.GetLoanAmount() - payment
         AICompany.SetLoanAmount(newLoan<0?0:newLoan);
         Info("Repaying " + payment + " of loan " + AICompany.GetMaxLoanAmount() + " ( " + (payment*100/AICompany.GetMaxLoanAmount()) + "% )")
-    } else {
-        Warning("No loan adjustment made")
     }
 }

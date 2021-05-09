@@ -1,4 +1,4 @@
-# OpenTTD-AI
+# Mungo-AI
 My AI for OpenTTD, will use primarily air  
 Initial version from WrightAI with ideas from AIAI  
 

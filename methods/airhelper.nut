@@ -1,3 +1,4 @@
+// TODO find cities to build in and then create list for feeder cities
 class AirHelper extends Helper {
 	towns_used = null;
 
@@ -86,6 +87,8 @@ function AirHelper::CreateNewRandomRoute() {
 }
 
 // TODO find towns far away but not too far
+// TODO use aircraft speed to find best cities
+// TODO only build in cities
 function AirHelper::FindSuitableLocation(airport_type, center_tile) {
     local airport_x, airport_y, airport_rad;
 
@@ -187,7 +190,7 @@ function AirHelper::BuildNewVehicle(tile_1, tile_2, cargo){
 	engine_list.KeepTop(5);
 
   	// Get the biggest plane for our cargo
-	engine_list.Valuate(AIVehicle.GetCapacity, cargo);
+	engine_list.Valuate(AIEngine.GetCapacity);
 	engine_list.KeepTop(1);
 
 	engine = engine_list.Begin();
@@ -196,17 +199,11 @@ function AirHelper::BuildNewVehicle(tile_1, tile_2, cargo){
 		Error("Couldn't find a suitable engine");
 		return -1;
 	}
-// TODO FIX
-	if (!AIVehicle.RefitVehicle(engine, cargo)) {
-		Error("Couldn't refit the aircraft " + AIError.GetLastErrorString());
-		AIVehicle.SellVehicle(engine);
-		return -1;
-	}
-
-	local vehicle = AIVehicle.BuildVehicle(hangar, engine);
+	
+	local vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
 		Mungo.Sleep(1);
-		vehicle = AIVehicle.BuildVehicle(hangar, engine);
+		vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
 	}
 
 	// Send it on it's way
@@ -225,7 +222,8 @@ function AirHelper::BuildNewVehicle(tile_1, tile_2, cargo){
 	return vehicle;
 }
 
-// TODO upgrade airports
+// TODO upgrade airports#
+// TODO build statues where profitable
 function AirHelper::UpgradeRoutes() {
 	local list = AIVehicleList();
 
@@ -286,7 +284,7 @@ function AirHelper::UpgradeCargoDist() {
 	list = AIStationList(AIStation.STATION_AIRPORT);
 	list.Valuate(AIStation.GetCargoWaiting, this.mail_cargo_id);
 	list.KeepAboveValue(250);
-	Info("looking at mail")
+
 	for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
 		local list2 = AIVehicleList_Station(i);
 

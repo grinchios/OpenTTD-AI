@@ -52,10 +52,7 @@ function Mungo::Start() {
 		this.air_helper.SellNegativeVehicles();
 		this.air_helper.UpgradeRoutes();
 		this.air_helper.UpgradeCargoDist();
-
-		// Create new airplane if money permits and ticker is running
 		// this.air_helper.CreateNewRandomRoute();
-		this.air_helper.UpgradeRoutes();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);

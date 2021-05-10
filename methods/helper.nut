@@ -101,3 +101,10 @@ function Helper::FurthestTownTileFromTown(i, tile) {
 
     }
 }
+
+function Helper::KeepTopPercent(input_list, percent) {
+    input_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
+    input_list.KeepTop(((input_list.Count()*10000)/100*percent)/10000);
+
+    return input_list;
+}

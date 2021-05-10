@@ -1,7 +1,7 @@
 // TODO find cities to build in and then create list for feeder cities
 class AirHelper extends Helper {
 	towns_used = null;
-	DEBUG = true;
+	DEBUG = false;
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_AIR;
@@ -20,7 +20,6 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 		engine_list.Valuate(AIEngine.GetPlaneType);
 		engine_list.RemoveValue(AIAirport.PT_BIG_PLANE);
 	}
-	Info(engine_list.Count());
 
 	// Check we have enough money for the cheapest plane
 	engine_list.Valuate(AIEngine.GetPrice)
@@ -29,11 +28,9 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 
 	engine_list.Valuate(AIEngine.GetPrice);
 	engine_list.KeepBelowValue(MaximumBudget()/4);
-	Info(engine_list.Count());
 	
 	engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
 	engine_list.KeepValue(1);
-	Info(engine_list.Count());
 
 	engine_list.Valuate(AIEngine.GetMaximumOrderDistance);
 	local tmp_engine_list = engine_list
@@ -47,13 +44,11 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 	engine_list.Valuate(AIEngine.GetMaxSpeed);
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 	engine_list.KeepTop(5);
-	Info(engine_list.Count())
 
   	// Get the biggest plane for our cargo
 	engine_list.Valuate(AIEngine.GetCapacity);
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 	engine_list.KeepTop(1);
-	Info(engine_list.Count())
 
 	return engine_list.Begin();
 }
@@ -119,8 +114,6 @@ function AirHelper::GetOrderDistance(tile_1, tile_2) {
 	return AIOrder.GetOrderDistance(AIVehicle.VT_AIR, tile_1, tile_2);
 }
 
-// TODO find towns far away but not too far
-// TODO use aircraft speed to find best cities
 // TODO only build in cities?
 // TODO terraform to make room
 function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distance=INFINITY) {
@@ -138,8 +131,14 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 	// Keep large towns not too far away for the planes we have
 	town_list.Valuate(AITown.GetPopulation);
 	town_list.KeepAboveValue(Mungo.GetSetting("min_town_size"));
-	town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
-	town_list.KeepBelowValue(max_distance);
+
+	if (center_tile!=0) {
+		this.KeepTopPercent(town_list, 50)
+		Info(town_list.Count())
+		town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
+		town_list.KeepBelowValue(max_distance);
+	}
+
 	town_list.KeepTop(5);
 
 

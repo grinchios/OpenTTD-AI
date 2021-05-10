@@ -32,3 +32,7 @@ function RepayLoan() {
         Info("Repaying " + payment + " of loan " + AICompany.GetMaxLoanAmount() + " ( " + (payment*100/AICompany.GetMaxLoanAmount()) + "% )")
     }
 }
+
+function MaximumBudget() {
+    return AICompany.GetMaxLoanAmount() - RESERVE_MONEY;
+}

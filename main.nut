@@ -8,17 +8,41 @@ class Mungo extends AIController {
 	ticker = null;
 	air_helper = null;
 
+	helpers = []
+
 	constructor() {
 		this.sleepingtime = 500;
 
 		/* We need our local ticker, as GetTick() will skip ticks */
 		this.ticker = 0;
+
+		this.helpers.append(air_helper)
   	} 
 }
 
-function HouseKeeping() {
+// TODO setup buses if air transport disabled or too early
+function Mungo::MoneyMaker() {
+	// Initial moneymaker is passenger air transport
+	local ret = this.air_helper.CreateNewRoute();
+	if (!ret && this.ticker != 0) {
+		/* No more route found, delay even more before trying to find an other */
+		this.delay_build_airport_route = 10000;
+		return true;
+	} else if (!ret && this.ticker == 0) {
+		/* The AI failed to build a first airport and is deemed a failure */
+		AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
+		Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
+		AICompany.SetLoanAmount(0);
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function Mungo::HouseKeeping() {
     Mungo.HandleEvents();
     RepayLoan();
+	StatuesInTowns();
 }
 
 function Mungo::Start() {
@@ -29,18 +53,9 @@ function Mungo::Start() {
 	for(local i = 0; true; i++) {
 		Warning("Starting iteration: " + i)
 		
-		/* Once in a while, with enough money, try to build something */
 		if ((this.ticker % this.delay_build_airport_route == 0 || this.ticker == 0) && HasMoney(100000)) {
-			local ret = this.air_helper.CreateNewRoute();
-			if (!ret && this.ticker != 0) {
-				/* No more route found, delay even more before trying to find an other */
-				this.delay_build_airport_route = 10000;
-			} else if (!ret && this.ticker == 0) {
-				/* The AI failed to build a first airport and is deemed a failure */
-				AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
-				Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
-				AICompany.SetLoanAmount(0);
-				return;
+			if (!this.MoneyMaker()) {
+				return
 			}
 		}
 		

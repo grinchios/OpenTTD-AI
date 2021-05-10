@@ -9,14 +9,15 @@ class Mungo extends AIInfo
   function GetShortName()     { return "MUNG"; }
   function MinVersionToLoad() { return 3; }
   
+  // TODO tweak and add settings
   function GetSettings() {
   AddSetting({name = "min_town_size",
               description = "The minimal size of towns to work on",
-              min_value = 100,
-              max_value = 1000,
-              easy_value = 500,
+              min_value = 500,
+              max_value = 2000,
+              easy_value = 750,
               medium_value = 750,
-              hard_value = 1000,
+              hard_value = 750,
               custom_value = 500,
               flags = 0});
   }

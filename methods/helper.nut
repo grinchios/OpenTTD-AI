@@ -28,19 +28,12 @@ function Helper::Init() {
         this.vehicle_array.append(i.VehicleID);
         
         vehicle_name = split_message(AIVehicle.GetName(i.VehicleID), " ");
-        this.route_1.append(vehicle_name[0]);
-        this.route_2.append(vehicle_name[1]);
+        this.route_1.AddItem(i, vehicle_name[0]);
+        this.route_2.AddItem(i, vehicle_name[1]);
     }
 
-    // Get the id of cargo
-    local list = AICargoList();
-    for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
-        if (AICargo.HasCargoClass(i, AICargo.CC_PASSENGERS)) {
-            this.passenger_cargo_id = i;
-        } else if (AICargo.HasCargoClass(i, AICargo.CC_MAIL)) {
-            this.mail_cargo_id = i;
-        }
-    }
+    this.passenger_cargo_id = GetCargoID(AICargo.CC_PASSENGERS);
+    this.mail_cargo_id = GetCargoID(AICargo.CC_MAIL);
 }
 
 function Helper::SetDepotName(station_id, limit, depot_tile) {
@@ -100,5 +93,11 @@ function Helper::SellNegativeVehicles() {
 function Helper::SellRoute(i) {
     if (this.VEHICLETYPE == AIVehicle.VT_AIR) {
         this.AirHelper.SellAirports(i);
+    }
+}
+
+function Helper::FurthestTownTileFromTown(i, tile) {
+    for (town = town_list.Begin(); town_list.HasNext(); town = town_list.Next()) {
+
     }
 }

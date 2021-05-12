@@ -95,3 +95,20 @@ function GetBestAirport() {
 	if (AIAirport.IsValidAirportType(AIAirport.AT_COMMUTER)) {return AIAirport.AT_COMMUTER}
 	if (AIAirport.IsValidAirportType(AIAirport.AT_SMALL)) {return AIAirport.AT_SMALL}
 }
+
+function KeepFastest(input_list) {
+	input_list.Valuate(AIEngine.GetMaxSpeed);
+	local current_fastest = input_list.GetValue(input_list.Begin());
+	local tmp_list = input_list;
+	local element_speed = 0;
+	for (local element = tmp_list.Begin(); tmp_list.HasNext(); element = tmp_list.Next()) {
+		element_speed = input_list.GetValue(element);
+		if (current_fastest<element_speed) {
+			input_list.RemoveBelowValue(element_speed);
+			current_fastest = element_speed;
+			Info((1*16*256)/(74*2)*24)
+		}
+	}
+
+	return input_list;
+}

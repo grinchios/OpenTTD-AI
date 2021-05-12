@@ -3,7 +3,7 @@ class Mungo extends AIInfo
   function GetAuthor()        { return "Grinchios"; }
   function GetName()          { return "Mungo"; }
   function GetDescription()   { return "Attempt at a competitive AI"; }
-  function GetVersion()       { return 5; }
+  function GetVersion()       { return 6; }
   function GetDate()          { return "2021-05-03"; }
   function CreateInstance()   { return "Mungo"; }
   function GetShortName()     { return "MUNG"; }

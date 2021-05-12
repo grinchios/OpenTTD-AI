@@ -45,6 +45,9 @@ function Mungo::HouseKeeping() {
 	StatuesInTowns();
 }
 
+// TODO create strategies, infrastructure costs, limits on vehicles
+// TODO create vehicle groups based on what cargo they are carrying
+// TODO autorenew
 function Mungo::Start() {
 	if (!StartUp()) {return;}
 	this.air_helper = AirHelper();

@@ -1,4 +1,5 @@
 // TODO find cities to build in and then create list for feeder cities
+// TODO check aircraft limits
 class AirHelper extends Helper {
 	towns_used = null;
 	DEBUG = false;
@@ -40,10 +41,12 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 		}
 	}
 
-	// Get the biggest plane for our cargo
-	engine_list.Valuate(AIEngine.GetMaxSpeed);
-	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	engine_list.KeepTop(5);
+	// Keep the fastest planes
+	// engine_list.Valuate(AIEngine.GetMaxSpeed);
+	// engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
+	// engine_list.KeepTop(2);
+
+	engine_list = KeepFastest(engine_list);
 
   	// Get the biggest plane for our cargo
 	engine_list.Valuate(AIEngine.GetCapacity);
@@ -53,6 +56,7 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 	return engine_list.Begin();
 }
 
+// TODO select a plane that is suitable for the amount of cargo available here
 // TODO aiai burden style system
 function AirHelper::CreateNewRoute() {
 	// TODO add some variable inputs here to select the most relevant airport
@@ -101,10 +105,10 @@ function AirHelper::CreateNewRoute() {
 		return false;
 	} else {
 		local location = AIStation.GetStationID(tile_1);
-		this.SetDepotName(location, 0, 0);
+		// this.SetDepotName(location, 0, 0);
 		
 		location = AIStation.GetStationID(tile_2);
-		this.SetDepotName(location, 0, 0);
+		// this.SetDepotName(location, 0, 0);
 		Info("Done building a route");
 		return true;
 	}
@@ -134,7 +138,6 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 
 	if (center_tile!=0) {
 		this.KeepTopPercent(town_list, 50)
-		Info(town_list.Count())
 		town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
 		town_list.KeepBelowValue(max_distance);
 	}
@@ -255,6 +258,7 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 }
 
 // TODO upgrade airports
+// TODO upgrade current planes in service if they've earnt enough money
 function AirHelper::UpgradeRoutes() {
 	// Don't try to add planes when we are short on cash
 	if (!HasMoney(250000)) return;

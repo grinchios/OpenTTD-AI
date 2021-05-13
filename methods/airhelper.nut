@@ -25,10 +25,10 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 	// Check we have enough money for the cheapest plane
 	engine_list.Valuate(AIEngine.GetPrice)
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-	if (MaximumBudget() < engine_list.GetValue(engine_list.Begin())) {return -1}
+	if (!this.CanAffordCheapestEngine()) {return -1}
 
 	engine_list.Valuate(AIEngine.GetPrice);
-	engine_list.KeepBelowValue(MaximumBudget()/4);
+	engine_list.KeepBelowValue(CurrentFunds()/2);
 	
 	engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
 	engine_list.KeepValue(1);
@@ -41,12 +41,9 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 		}
 	}
 
-	// Keep the fastest planes
-	// engine_list.Valuate(AIEngine.GetMaxSpeed);
-	// engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	// engine_list.KeepTop(2);
-
-	engine_list = KeepFastest(engine_list);
+	engine_list.Valuate(this.EngineUse);
+	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
+	engine_list.KeepTop(1);
 
   	// Get the biggest plane for our cargo
 	engine_list.Valuate(AIEngine.GetCapacity);
@@ -56,34 +53,38 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 	return engine_list.Begin();
 }
 
-// TODO select a plane that is suitable for the amount of cargo available here
+function AirHelper::NewRouteCost(station_type) {
+	return AIAirport.GetPrice(station_type)*2
+}
+
 // TODO aiai burden style system
 function AirHelper::CreateNewRoute() {
 	// TODO add some variable inputs here to select the most relevant airport
 	// Gets the "best" airport type avaliable
 	local airport_type = GetBestAirport();
+	if (airport_type == -1) {return -1}
 
 	Info("Trying to build an airport route");
 
 	local tile_1 = this.FindSuitableLocation(airport_type);
-	if (tile_1 < 0) return -1;
+	if (tile_1 < 0) return false;
 
 	local tile_2 = this.FindSuitableLocation(airport_type, tile_1);
 	if (tile_2 < 0) {
 		this.towns_used.RemoveValue(tile_1);
-		return -2;
+		return false;
 	}
 	
-	// TODO calculate the correct amount of money + insurance money
 	// Get enough money to work with
-	GetMoney(150000);
+	if (!HasMoney(this.NewRouteCost(airport_type))) {return false;}
+	GetMoney(this.NewRouteCost(airport_type));
 
 	// Build the airports for real
 	if (!AIAirport.BuildAirport(tile_1, airport_type, AIStation.STATION_NEW)) {
 		Error("Failed on the first airport at tile " + tile_1 + ".");
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
-		return -3;
+		return false;
 	}
 
 	if (!AIAirport.BuildAirport(tile_2, airport_type, AIStation.STATION_NEW)) {
@@ -91,12 +92,12 @@ function AirHelper::CreateNewRoute() {
 		AIAirport.RemoveAirport(tile_1);
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
-		return -4;
+		return false;
 	}
 
-	local engine = this.SelectBestAircraft(airport_type, this.passenger_cargo_id, AITile.GetDistanceManhattanToTile(tile_1, tile_2))
+	local engine = this.SelectBestAircraft(airport_type, this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
 
-	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.passenger_cargo_id)<0) {
+	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0])<0) {
 		Error("Removing airports due to error");
 		AIAirport.RemoveAirport(tile_1);
 		AIAirport.RemoveAirport(tile_2);
@@ -163,9 +164,9 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		list.KeepValue(1);
 
 		// Sort on acceptance, remove places that don't have acceptance 
-		list.Valuate(AITile.GetCargoAcceptance, this.passenger_cargo_id, airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
 		list.RemoveBelowValue(50);
-		list.Valuate(AITile.GetCargoAcceptance, this.passenger_cargo_id, airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
 		list.RemoveBelowValue(10);
 
 		if (center_tile != 0) {
@@ -175,7 +176,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		}
 
 		// Sort on acceptance, remove places that don't have acceptance
-		list.Valuate(AITile.GetCargoAcceptance, this.passenger_cargo_id, airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
 		list.RemoveBelowValue(10);
 
 		// Couldn't find a suitable place for this town, skip to the next
@@ -230,10 +231,8 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	// Build an aircraft
 	local hangar = AIAirport.GetHangarOfAirport(tile_1);
 
-	if (!AIEngine.IsValidEngine(engine)) {
-		Error("Couldn't find a suitable engine");
-		return -1;
-	}
+	// Get the shmoneys
+	GetMoney(AIEngine.GetPrice(engine));
 	
 	local vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
@@ -261,34 +260,38 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 // TODO upgrade current planes in service if they've earnt enough money
 function AirHelper::UpgradeRoutes() {
 	// Don't try to add planes when we are short on cash
-	if (!HasMoney(250000)) return;
+	if (!CanAffordCheapestEngine()) return;
 
-	local list = AIStationList(AIStation.STATION_AIRPORT);
-	list.Valuate(AIStation.GetCargoWaiting, this.passenger_cargo_id);
-	list.KeepAboveValue(250);
+	// Upgrade routes for all cargo routes we currently service
+	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
+		local list = AIStationList(AIStation.STATION_AIRPORT);
+		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
+		list.KeepAboveValue(250);
 
-	for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
-		local list2 = AIVehicleList_Station(i);
-		// No vehicles going to this station, abort and sell
-		if (list2.Count() == 0) {
-			this.SellAirports(i);
-			continue;
-		};
+		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
+			local list2 = AIVehicleList_Station(station_id);
+			// No vehicles going to this station, abort and sell
+			if (list2.Count() == 0) {
+				this.SellAirports(i);
+				continue;
+			};
 
-		// Do not build a new vehicle if we bought a new one in the last DISTANCE days
-		local v = list2.Begin();
-		list2.Valuate(AIVehicle.GetAge);
-		list2.KeepBelowValue(365);
-		if (list2.Count() != 0) continue;
+			// Do not build a new vehicle if we bought a new one in the last DISTANCE days
+			local v = list2.Begin();
+			list2.Valuate(AIVehicle.GetAge);
+			list2.KeepBelowValue(365);
+			if (list2.Count() != 0) continue;
 
-		Info("Upgrading " + i + " (" + AIStation.GetLocation(i) + ") for passengers");
+			Info("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
 
-		// Make sure we have enough money
-		GetMoney(250000);
+			local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
+			local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
+			
+			// Make sure we have enough money
+			GetMoney(AIEngine.GetPrice(engine));
 
-		local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
-		local engine = this.SelectBestAircraft(airport_type, this.passenger_cargo_id, AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
-		return this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.passenger_cargo_id);
+			return this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
+		}
 	}
 }
 
@@ -308,36 +311,4 @@ function AirHelper::SellAirports(i) {
 	// Remove the route
 	this.route_1.RemoveItem(i);
 	this.route_2.RemoveItem(i);
-}
-
-function AirHelper::UpgradeCargoDist() {
-	local list = AIVehicleList();
-
-	// Don't try to add planes when we are short on cash
-	if (!HasMoney(250000)) return;
-
-	list = AIStationList(AIStation.STATION_AIRPORT);
-	list.Valuate(AIStation.GetCargoWaiting, this.mail_cargo_id);
-	list.KeepAboveValue(250);
-
-	for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
-		local list2 = AIVehicleList_Station(i);
-
-		// Do not build a new vehicle if we bought a new one in the last DISTANCE days
-		local v = list2.Begin();
-		list2.Valuate(AIVehicle.GetAge);
-		list2.KeepBelowValue(365);
-		if (list2.Count() != 0) continue;
-
-		Info("Upgrading " + i + " (" + AIStation.GetLocation(i) + ") for mail");
-
-		// Make sure we have enough money
-		GetMoney(250000);
-
-		local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
-		local engine = this.SelectBestAircraft(airport_type, this.passenger_cargo_id, AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
-		local new_vehicle = this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.mail_cargo_id);
-
-		return true;
-	}
 }

@@ -48,6 +48,7 @@ function Mungo::HouseKeeping() {
 // TODO create strategies, infrastructure costs, limits on vehicles
 // TODO create vehicle groups based on what cargo they are carrying
 // TODO autorenew
+// TODO change reserve money based on monthly outgoings
 function Mungo::Start() {
 	if (!StartUp()) {return;}
 	this.air_helper = AirHelper();
@@ -69,8 +70,6 @@ function Mungo::Start() {
 		// Manage the routes once in a while
 		this.air_helper.SellNegativeVehicles();
 		this.air_helper.UpgradeRoutes();
-		this.air_helper.UpgradeCargoDist();
-		// this.air_helper.CreateNewRandomRoute();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);
@@ -109,8 +108,6 @@ function Mungo::HandleEvents() {
 						if (this.air_helper.vehicle_array == v) {
 							this.air_helper.vehicle_array.remove(i);
 							this.air_helper.BuildAircraft(this.air_helper.route_1.GetValue(v), this.air_helper.route_2.GetValue(v));
-							// this.route_1.RemoveItem(v);
-							// this.route_2.RemoveItem(v);
 							break;
 						}
 					}
@@ -120,8 +117,6 @@ function Mungo::HandleEvents() {
 						if (this.air_helper.vehicle_array == v) {
 							this.air_helper.vehicle_array.remove(i);
 							this.air_helper.BuildAircraft(this.air_helper.route_1.GetValue(v), this.air_helper.route_2.GetValue(v));
-							// this.route_1.RemoveItem(v);
-							// this.route_2.RemoveItem(v);
 							break;
 						}
 					}

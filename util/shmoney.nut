@@ -36,3 +36,7 @@ function RepayLoan() {
 function MaximumBudget() {
     return AICompany.GetMaxLoanAmount() - RESERVE_MONEY;
 }
+
+function CurrentFunds() {
+    return BankBalance() + (AICompany.GetMaxLoanAmount() - AICompany.GetLoanAmount())
+}

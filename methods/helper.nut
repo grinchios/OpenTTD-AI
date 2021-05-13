@@ -4,8 +4,7 @@ class Helper {
     vehicle_array = [];
     VEHICLETYPE = null;
 
-    passenger_cargo_id = -1;
-	mail_cargo_id = -1
+    cargo_list = []
 };
 
 function Helper::FindSuitableLocation(){}
@@ -32,8 +31,8 @@ function Helper::Init() {
         this.route_2.AddItem(i, vehicle_name[1]);
     }
 
-    this.passenger_cargo_id = GetCargoID(AICargo.CC_PASSENGERS);
-    this.mail_cargo_id = GetCargoID(AICargo.CC_MAIL);
+    this.cargo_list.append(GetCargoID(AICargo.CC_PASSENGERS));
+    this.cargo_list.append(GetCargoID(AICargo.CC_MAIL));
 }
 
 function Helper::SetDepotName(station_id, limit, depot_tile) {
@@ -107,4 +106,19 @@ function Helper::KeepTopPercent(input_list, percent) {
     input_list.KeepTop(((input_list.Count()*10000)/100*percent)/10000);
 
     return input_list;
+}
+
+function Helper::CanAffordCheapestEngine() {
+    return HasMoney(this.CheapestEngine());
+}
+
+function Helper::CheapestEngine() {
+    local engine_list = AIEngineList(this.VEHICLETYPE)
+    engine_list.Valuate(AIEngine.GetPrice)
+	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
+    return engine_list.GetValue(engine_list.Begin());
+}
+
+function Helper::EngineUse(engine_id) {
+    return AIEngine.GetCapacity(engine_id) * AIEngine.GetMaxSpeed(engine_id);
 }

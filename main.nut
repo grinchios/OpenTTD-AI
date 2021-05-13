@@ -6,7 +6,6 @@ class Mungo extends AIController {
 	vehicle_to_depot = {};
 	delay_build_airport_route = 1000;
 	ticker = null;
-	air_helper = null;
 
 	helpers = []
 
@@ -15,15 +14,33 @@ class Mungo extends AIController {
 
 		/* We need our local ticker, as GetTick() will skip ticks */
 		this.ticker = 0;
-
-		this.helpers.append(air_helper)
   	} 
+}
+
+function Mungo::Init() {
+	NameCompany();
+
+	// Setup Helpers
+	this.helpers.append(AirHelper());
+
+	// Auto-renew
+	if (AIGameSettings.GetValue("difficulty.vehicle_breakdowns")!= 0) {
+		Warning("Enabling AutoRenew");
+		AICompany.SetAutoRenewStatus(true);
+	} else {
+		Warning("Enabling AutoRenew");
+		AICompany.SetAutoRenewStatus(false);
+	}
+
+	AICompany.SetAutoRenewMonths(0);
+	AICompany.SetAutoRenewMoney(100000);
+	return true;
 }
 
 // TODO setup buses if air transport disabled or too early
 function Mungo::MoneyMaker() {
 	// Initial moneymaker is passenger air transport
-	local ret = this.air_helper.CreateNewRoute();
+	local ret = this.helpers[0].CreateNewRoute();
 	if (!ret && this.ticker != 0) {
 		/* No more route found, delay even more before trying to find an other */
 		this.delay_build_airport_route = 10000;
@@ -47,11 +64,9 @@ function Mungo::HouseKeeping() {
 
 // TODO create strategies, infrastructure costs, limits on vehicles
 // TODO create vehicle groups based on what cargo they are carrying
-// TODO autorenew
 // TODO change reserve money based on monthly outgoings
 function Mungo::Start() {
-	if (!StartUp()) {return;}
-	this.air_helper = AirHelper();
+	if (!this.Init()) {return;}
 
 	// Let's go on for ever
 	for(local i = 0; true; i++) {
@@ -68,8 +83,8 @@ function Mungo::Start() {
 		this.HouseKeeping();
 
 		// Manage the routes once in a while
-		this.air_helper.SellNegativeVehicles();
-		this.air_helper.UpgradeRoutes();
+		this.helpers[0].SellNegativeVehicles();
+		this.helpers[0].ManageRoutes();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);
@@ -104,19 +119,19 @@ function Mungo::HandleEvents() {
 				
 				if (crash_reason == AIEventVehicleCrashed.CRASH_AIRCRAFT_NO_AIRPORT) {
 					Info("Replacing crashed plane");
-					for (local i = 0; i < this.air_helper.vehicle_array.len(); i++) {
-						if (this.air_helper.vehicle_array == v) {
-							this.air_helper.vehicle_array.remove(i);
-							this.air_helper.BuildAircraft(this.air_helper.route_1.GetValue(v), this.air_helper.route_2.GetValue(v));
+					for (local i = 0; i < this.helpers[0].vehicle_array.len(); i++) {
+						if (this.helpers[0].vehicle_array == v) {
+							this.helpers[0].vehicle_array.remove(i);
+							this.helpers[0].BuildAircraft(this.helpers[0].route_1.GetValue(v), this.helpers[0].route_2.GetValue(v));
 							break;
 						}
 					}
 				} else if (crash_reason == AIEventVehicleCrashed.CRASH_PLANE_LANDING) {
 					Info("Replacing crashed plane");
-					for (local i = 0; i < this.air_helper.vehicle_array.len(); i++) {
-						if (this.air_helper.vehicle_array == v) {
-							this.air_helper.vehicle_array.remove(i);
-							this.air_helper.BuildAircraft(this.air_helper.route_1.GetValue(v), this.air_helper.route_2.GetValue(v));
+					for (local i = 0; i < this.helpers[0].vehicle_array.len(); i++) {
+						if (this.helpers[0].vehicle_array == v) {
+							this.helpers[0].vehicle_array.remove(i);
+							this.helpers[0].BuildAircraft(this.helpers[0].route_1.GetValue(v), this.helpers[0].route_2.GetValue(v));
 							break;
 						}
 					}

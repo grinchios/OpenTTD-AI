@@ -122,3 +122,17 @@ function Helper::CheapestEngine() {
 function Helper::EngineUse(engine_id) {
     return AIEngine.GetCapacity(engine_id) * AIEngine.GetMaxSpeed(engine_id);
 }
+
+function Helper::DebugSign(tile, message) {
+    if (this.DEBUG) {
+        {
+            local mode = AIExecMode();
+            local debug_sign = AISign.BuildSign(tile, message);
+            while (!AISign.IsValidSign(debug_sign)) {
+                Mungo.Sleep(1);
+                debug_sign = AISign.BuildSign(tile, message);
+                Error(AIError.GetLastErrorString() + tile);
+            }
+        }
+    }
+}

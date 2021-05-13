@@ -1,9 +1,3 @@
-// TODO 
-function StartUp() {
-	NameCompany();
-	return true;
-}
-
 // TODO company owner picture
 // TODO build HQ somewhere nice
 function NameCompany() {

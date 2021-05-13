@@ -2,7 +2,7 @@
 // TODO check aircraft limits
 class AirHelper extends Helper {
 	towns_used = null;
-	DEBUG = false;
+	DEBUG = true;
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_AIR;
@@ -84,6 +84,7 @@ function AirHelper::CreateNewRoute() {
 		Error("Failed on the first airport at tile " + tile_1 + ".");
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
+		Error(AIError.GetLastErrorString());
 		return false;
 	}
 
@@ -92,10 +93,14 @@ function AirHelper::CreateNewRoute() {
 		AIAirport.RemoveAirport(tile_1);
 		this.towns_used.RemoveValue(tile_1);
 		this.towns_used.RemoveValue(tile_2);
+		Error(AIError.GetLastErrorString());
 		return false;
 	}
 
 	local engine = this.SelectBestAircraft(airport_type, this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
+
+	this.DebugSign(tile_1, "Distance:"+AITile.GetDistanceManhattanToTile(tile_1, tile_2));
+	this.DebugSign(tile_2, "Distance:"+AITile.GetDistanceManhattanToTile(tile_1, tile_2));
 
 	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0])<0) {
 		Error("Removing airports due to error");
@@ -121,6 +126,7 @@ function AirHelper::GetOrderDistance(tile_1, tile_2) {
 
 // TODO only build in cities?
 // TODO terraform to make room
+// TODO add cargo selection in for cargo planes
 function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distance=INFINITY) {
     local airport_x, airport_y, airport_rad;
 
@@ -143,6 +149,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		town_list.KeepBelowValue(max_distance);
 	}
 
+	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 	town_list.KeepTop(5);
 
 
@@ -190,16 +197,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 			for (tile = list.Begin(); list.HasNext(); tile = list.Next()) {
 				Mungo.Sleep(1);
 				if (!AIAirport.BuildAirport(tile, airport_type, AIStation.STATION_NEW)) {
-					if (this.DEBUG) {
-						local debug_sign = AISign.BuildSign(tile, "tile:"+tile);
-						{
-							local mode = AIExecMode();
-							while (!AISign.IsValidSign(debug_sign)) {
-								Mungo.Sleep(1);
-								debug_sign = AISign.BuildSign(tile, "tile:"+tile);
-							}
-						}
-					}
+					this.DebugSign(tile, "tile:"+tile)
 					continue;
 				}
 				
@@ -207,7 +205,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 				break;
 			}
 
-			// Did we found a place to build the airport on?
+			// Did we find a place to build the airport on?
 			if (good_tile == 0) continue;
 		}
 
@@ -258,7 +256,7 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 
 // TODO upgrade airports
 // TODO upgrade current planes in service if they've earnt enough money
-function AirHelper::UpgradeRoutes() {
+function AirHelper::ManageRoutes() {
 	// Don't try to add planes when we are short on cash
 	if (!CanAffordCheapestEngine()) return;
 

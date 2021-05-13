@@ -21,7 +21,3 @@ function Warning(message) {
 function Error(message) {
     AILog.Error("[*] " + GetDate() + " - " + message);
 }
-
-function StationName(station_id, limit, depot_tile) {
-    
-}

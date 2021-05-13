@@ -62,6 +62,7 @@ function Mungo::HouseKeeping() {
 	StatuesInTowns();
 }
 
+// TODO buses for all towns under 200 distance
 // TODO create strategies, infrastructure costs, limits on vehicles
 // TODO create vehicle groups based on what cargo they are carrying
 // TODO change reserve money based on monthly outgoings

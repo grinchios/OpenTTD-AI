@@ -57,6 +57,7 @@ function AirHelper::NewRouteCost(station_type) {
 	return AIAirport.GetPrice(station_type)*2
 }
 
+// TODO get towns further than 200 for airports
 // TODO aiai burden style system
 function AirHelper::CreateNewRoute() {
 	// TODO add some variable inputs here to select the most relevant airport

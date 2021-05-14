@@ -1,65 +1,24 @@
 // TODO find cities to build in and then create list for feeder cities
 // TODO check aircraft limits
-class AirHelper extends Helper {
+class RoadHelper extends Helper {
 	towns_used = null;
 	DEBUG = true;
 
 	constructor() {
-		this.VEHICLETYPE = AIVehicle.VT_AIR;
+		this.VEHICLETYPE = AIVehicle.VT_ROAD;
 		this.towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);
 
 		this.Init();
 	}
 }
 
-// TODO add in maximum cost to calls, used when we know the cost of airports
-function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_cost=INFINITY) {
-	local engine_list = AIEngineList(this.VEHICLETYPE)
-
-	// Remove big planes if we use a smaller airport type
-	if (airport_type==AIAirport.AT_SMALL || airport_type==AIAirport.AT_COMMUTER ) {
-		engine_list.Valuate(AIEngine.GetPlaneType);
-		engine_list.RemoveValue(AIAirport.PT_BIG_PLANE);
-	}
-
-	// Check we have enough money for the cheapest plane
-	engine_list.Valuate(AIEngine.GetPrice)
-	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-	if (!this.CanAffordCheapestEngine()) {return -1}
-
-	engine_list.Valuate(AIEngine.GetPrice);
-	engine_list.KeepBelowValue(CurrentFunds()/2);
-	
-	engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
-	engine_list.KeepValue(1);
-
-	engine_list.Valuate(AIEngine.GetMaximumOrderDistance);
-	local tmp_engine_list = engine_list
-	for (local engine = tmp_engine_list.Begin(); tmp_engine_list.HasNext(); engine = tmp_engine_list.Next()) {
-		if (AIEngine.GetMaximumOrderDistance(engine) < distance && AIEngine.GetMaximumOrderDistance(engine) != 0) {
-			engine_list.RemoveItem(engine)
-		}
-	}
-
-	engine_list.Valuate(this.EngineUse);
-	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	engine_list.KeepTop(1);
-
-  	// // Get the biggest plane for our cargo
-	// engine_list.Valuate(AIEngine.GetCapacity);
-	// engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	// engine_list.KeepTop(1);
-
-	return engine_list.Begin();
-}
-
-function AirHelper::NewRouteCost(station_type) {
+function RoadHelper::NewRouteCost(station_type) {
 	return AIAirport.GetPrice(station_type)*2
 }
 
 // TODO get towns further than 200 for airports
 // TODO aiai burden style system
-function AirHelper::CreateNewRoute() {
+function RoadHelper::CreateNewRoute() {
 	// TODO add some variable inputs here to select the most relevant airport
 	// Gets the "best" airport type avaliable
 	local airport_type = GetBestAirport();
@@ -124,7 +83,7 @@ function AirHelper::CreateNewRoute() {
 // TODO only build in cities?
 // TODO terraform to make room
 // TODO add cargo selection in for cargo planes
-function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distance=INFINITY) {
+function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_distance=INFINITY) {
     local airport_x, airport_y, airport_rad;
 
 	airport_x = AIAirport.GetAirportWidth(airport_type);
@@ -144,7 +103,6 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		this.KeepTopPercent(town_list, 50)
 		town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
 		town_list.KeepBelowValue(max_distance);
-		town_list.KeepAboveValue(200);
 	}
 
 	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
@@ -175,8 +133,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		list.RemoveBelowValue(10);
 
 		if (center_tile != 0) {
-			// If we have a tile defined, we don't want to be within X tiles
-			// Look further than 200 for planes and under 200 for buses
+			// If we have a tile defined, we don't want to be within 25 tiles of this tile
 			list.Valuate(AITile.GetDistanceSquareToTile, center_tile);
 			list.KeepAboveValue(625);
 		}
@@ -221,7 +178,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 }
 
 // TODO duplicate for an array of tiles for round robin
-function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
+function RoadHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	// Build an aircraft with orders from tile_1 to tile_2.
 	// The best available aircraft of that time will be bought.
 
@@ -235,11 +192,6 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
 		Mungo.Sleep(1);
 		vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
-		Info(AIError.GetLastErrorString());
-		Info(AIAirport.IsHangarTile(hangar))
-		Info(AIEngine.IsValidEngine(engine) + " " + AIEngine.IsBuildable(engine) + " " + AIEngine.CanRefitCargo(engine, cargo))
-		Info(AICargo.IsValidCargo(cargo))
-		Info(cargo)
 	}
 
 	// Send it on it's way
@@ -260,9 +212,9 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 
 // TODO upgrade airports
 // TODO upgrade current planes in service if they've earnt enough money
-function AirHelper::ManageRoutes() {
+function RoadHelper::ManageRoutes() {
 	// Don't try to add planes when we are short on cash
-	if (!this.CanAffordCheapestEngine()) return;
+	if (!CanAffordCheapestEngine()) return;
 
 	// Upgrade routes for all cargo routes we currently service
 	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
@@ -297,7 +249,7 @@ function AirHelper::ManageRoutes() {
 	}
 }
 
-function AirHelper::SellAirports(i) {
+function RoadHelper::SellAirports(i) {
 	// Sells the airports from route index i
 	// Removes towns from towns_used list too
 

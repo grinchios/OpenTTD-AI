@@ -4,6 +4,7 @@ class Mungo extends AIController {
 	name = null;
 	sleepingtime = null
 	vehicle_to_depot = {};
+	vehicle_to_upgrade = {};
 	delay_build_airport_route = 1000;
 	ticker = null;
 
@@ -84,6 +85,7 @@ function Mungo::Start() {
 		this.HouseKeeping();
 
 		// Manage the routes once in a while
+		this.helpers[0].UpgradePositiveVehicles();
 		this.helpers[0].SellNegativeVehicles();
 		this.helpers[0].ManageRoutes();
 
@@ -96,6 +98,7 @@ function Mungo::Start() {
 function Mungo::Save() {
 	// dictionary of data to save in the savefile
 	local table =  {vehicle_to_depot  = this.vehicle_to_depot,
+					vehicle_to_upgrade = this.vehicle_to_upgrade,
 					ticker            = this.ticker};
 	return table;
 }
@@ -103,6 +106,9 @@ function Mungo::Save() {
 function Mungo::Load(version, data) {
 	if (data.rawin("vehicle_to_depot"))
 		this.vehicle_to_depot = data.rawget("vehicle_to_depot");
+
+	if (data.rawin("vehicle_to_upgrade"))
+		this.vehicle_to_upgrade = data.rawget("vehicle_to_upgrade");
 
 	if (data.rawin("ticker"))
 		this.ticker = data.rawget("ticker");

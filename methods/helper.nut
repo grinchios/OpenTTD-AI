@@ -50,6 +50,34 @@ function Helper::SetVehicleName(vehicle_id, name) {
     return true;
 }
 
+function Helper::UpgradePositiveVehicles() {
+    if (this.VEHICLETYPE==AIVehicle.VT_AIR) {
+        local vehicle_sizes = [AIAirport.PT_SMALL_PLANE, AIAirport.PT_BIG_PLANE]
+        local airport_types = [AIAirport.AT_COMMUTER, AIAirport.AT_METROPOLITAN]
+        for (local i = 0; i < vehicle_sizes.len(); i++) {
+            local engine_list=AIEngineList(this.VEHICLETYPE);
+            engine_list.Valuate(AIEngine.GetPlaneType);
+            engine_list.KeepValue(vehicle_sizes[i]);
+
+            for(local engine_existing = engine_list.Begin(); engine_list.HasNext(); engine_existing = engine_list.Next()) {
+                for (local j = this.cargo_list[0]; j < this.cargo_list.len(); j++) {
+                    if (AIEngine.CanRefitCargo(engine_existing, this.cargo_list[i])) {
+                        break;
+                    }
+                }
+
+                if (AIEngine.IsBuildable(AIGroup.GetEngineReplacement(AIGroup.GROUP_ALL, engine_existing))==false) {
+                    local engine_best = this.SelectBestAircraft(airport_types[i], this.cargo_list[0], AIEngine.GetMaximumOrderDistance(engine_existing))
+                    if (engine_best != engine_existing && engine_best != null) {
+                        AIGroup.SetAutoReplace(AIGroup.GROUP_ALL, engine_existing, engine_best);
+                        Info(AIEngine.GetName(engine_existing) + " will be replaced by " + AIEngine.GetName(engine_best));
+                    }
+                }
+            }
+        }
+    }
+}
+
 function Helper::SellNegativeVehicles() {
     local list = AIVehicleList();
 	list.Valuate(AIVehicle.GetVehicleType);
@@ -121,6 +149,10 @@ function Helper::CheapestEngine() {
 
 function Helper::EngineUse(engine_id) {
     return AIEngine.GetCapacity(engine_id) * AIEngine.GetMaxSpeed(engine_id);
+}
+
+function Helper::GetOrderDistance(tile_1, tile_2) {
+	return AIOrder.GetOrderDistance(this.VEHICLETYPE, tile_1, tile_2);
 }
 
 function Helper::DebugSign(tile, message) {

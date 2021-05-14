@@ -1,35 +1,33 @@
-// TODO find cities to build in and then create list for feeder cities
-// TODO check aircraft limits
-class RoadHelper extends Helper {
+class BusHelper extends Helper {
 	towns_used = null;
+	pathfinder = null;
 	DEBUG = true;
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_ROAD;
-		this.towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);
+		this.towns_used = TownsUsedForStationType(AIStation.STATION_BUS_STOP);
+
+		this.pathfinder = RoadPathFinder();
 
 		this.Init();
 	}
 }
 
-function RoadHelper::NewRouteCost(station_type) {
+// TODO
+function BusHelper::NewRouteCost(station_type) {
 	return AIAirport.GetPrice(station_type)*2
 }
 
-// TODO get towns further than 200 for airports
-// TODO aiai burden style system
-function RoadHelper::CreateNewRoute() {
-	// TODO add some variable inputs here to select the most relevant airport
-	// Gets the "best" airport type avaliable
-	local airport_type = GetBestAirport();
-	if (airport_type == -1) {return -1}
+// TODO
+// TODO adjust max distance based on bus speed
+function BusHelper::CreateNewRoute() {
+	// Gets the "best" engine type avaliable
+	Info("Trying to build a bus route");
 
-	Info("Trying to build an airport route");
-
-	local tile_1 = this.FindSuitableLocation(airport_type);
+	local tile_1 = this.FindSuitableLocation(0, 200);
 	if (tile_1 < 0) return false;
 
-	local tile_2 = this.FindSuitableLocation(airport_type, tile_1);
+	local tile_2 = this.FindSuitableLocation(0, 200);
 	if (tile_2 < 0) {
 		this.towns_used.RemoveValue(tile_1);
 		return false;
@@ -80,16 +78,11 @@ function RoadHelper::CreateNewRoute() {
 	}
 }
 
-// TODO only build in cities?
-// TODO terraform to make room
-// TODO add cargo selection in for cargo planes
-function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_distance=INFINITY) {
-    local airport_x, airport_y, airport_rad;
-
-	airport_x = AIAirport.GetAirportWidth(airport_type);
-	airport_y = AIAirport.GetAirportHeight(airport_type);
-	airport_rad = AIAirport.GetAirportCoverageRadius(airport_type);
-
+// TODO
+// TODO test the repeated keep below cargo acceptance
+// TODO use aitile and valuate for road tiles
+// x and y size of bus stop is 1 and radius is 3
+function BusHelper::FindSuitableLocation(center_tile=0, max_distance=INFINITY, cargo=this.cargo_list[0]) {
 	local town_list = AITownList();
 
 	// Remove all the towns we already used
@@ -97,7 +90,6 @@ function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_dista
 
 	// Keep large towns not too far away for the planes we have
 	town_list.Valuate(AITown.GetPopulation);
-	town_list.KeepAboveValue(Mungo.GetSetting("min_town_size"));
 
 	if (center_tile!=0) {
 		this.KeepTopPercent(town_list, 50)
@@ -118,18 +110,12 @@ function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_dista
 
 		local tile = AITown.GetLocation(town);
 
-		// Create a 30x30 grid around the core of the town and see if we can find a spot for a small airport
 		local list = AITileList();
 
-		// We assume we are more than 15 tiles away from the border!
-		list.AddRectangle(tile - AIMap.GetTileIndex(15, 15), tile + AIMap.GetTileIndex(15, 15));
-		list.Valuate(AITile.IsBuildableRectangle, airport_x, airport_y);
-		list.KeepValue(1);
-
 		// Sort on acceptance, remove places that don't have acceptance 
-		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
 		list.RemoveBelowValue(50);
-		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
 		list.RemoveBelowValue(10);
 
 		if (center_tile != 0) {
@@ -139,7 +125,7 @@ function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_dista
 		}
 
 		// Sort on acceptance, remove places that don't have acceptance
-		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
+		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
 		list.RemoveBelowValue(10);
 
 		// Couldn't find a suitable place for this town, skip to the next
@@ -177,8 +163,8 @@ function RoadHelper::FindSuitableLocation(airport_type, center_tile=0, max_dista
 
 }
 
-// TODO duplicate for an array of tiles for round robin
-function RoadHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
+// TODO
+function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	// Build an aircraft with orders from tile_1 to tile_2.
 	// The best available aircraft of that time will be bought.
 
@@ -210,9 +196,8 @@ function RoadHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	return vehicle;
 }
 
-// TODO upgrade airports
-// TODO upgrade current planes in service if they've earnt enough money
-function RoadHelper::ManageRoutes() {
+// TODO
+function BusHelper::ManageRoutes() {
 	// Don't try to add planes when we are short on cash
 	if (!CanAffordCheapestEngine()) return;
 
@@ -249,7 +234,8 @@ function RoadHelper::ManageRoutes() {
 	}
 }
 
-function RoadHelper::SellAirports(i) {
+// TODO
+function BusHelper::SellAirports(i) {
 	// Sells the airports from route index i
 	// Removes towns from towns_used list too
 

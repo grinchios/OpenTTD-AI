@@ -99,6 +99,8 @@ function AirHelper::CreateNewRoute() {
 	}
 
 	local engine = this.SelectBestAircraft(airport_type, this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
+	
+	if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine");return false}
 
 	this.DebugSign(tile_1, "Distance:"+AITile.GetDistanceManhattanToTile(tile_1, tile_2));
 	this.DebugSign(tile_2, "Distance:"+AITile.GetDistanceManhattanToTile(tile_1, tile_2));
@@ -236,7 +238,7 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 		Mungo.Sleep(1);
 		vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
 		Info(AIError.GetLastErrorString());
-		Info(AIAirport.IsHangarTile(hangar))
+		Info(AIAirport.IsHangarTile(hangar) + " " + AIAirport.GetHangarOfAirport(hangar))
 		Info(AIEngine.IsValidEngine(engine) + " " + AIEngine.IsBuildable(engine) + " " + AIEngine.CanRefitCargo(engine, cargo))
 		Info(AICargo.IsValidCargo(cargo))
 		Info(cargo)
@@ -274,7 +276,7 @@ function AirHelper::ManageRoutes() {
 			local list2 = AIVehicleList_Station(station_id);
 			// No vehicles going to this station, abort and sell
 			if (list2.Count() == 0) {
-				this.SellAirports(i);
+				this.SellRoute(i);
 				continue;
 			};
 
@@ -289,6 +291,8 @@ function AirHelper::ManageRoutes() {
 			local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
 			local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
 			
+			if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine");return false}
+
 			// Make sure we have enough money
 			GetMoney(AIEngine.GetPrice(engine));
 

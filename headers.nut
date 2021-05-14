@@ -3,7 +3,7 @@ const RESERVE_MONEY = 50000;
 const INFINITY = 1000000000000;
 
 // External Imports
-
+import("pathfinder.road", "RoadPathFinder", 3);
 
 // External Import Reassignments
 

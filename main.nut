@@ -23,6 +23,7 @@ function Mungo::Init() {
 
 	// Setup Helpers
 	this.helpers.append(AirHelper());
+	this.helpers.append(BusHelper());
 
 	// Auto-renew
 	if (AIGameSettings.GetValue("difficulty.vehicle_breakdowns")!= 0) {
@@ -35,11 +36,15 @@ function Mungo::Init() {
 
 	AICompany.SetAutoRenewMonths(0);
 	AICompany.SetAutoRenewMoney(100000);
+
+	// Auto replace
+	this.helpers[0].UpgradeVehicles();
+
 	return true;
 }
 
 // TODO setup buses if air transport disabled or too early
-function Mungo::MoneyMaker() {
+function Mungo::NewRoutes() {
 	// Initial moneymaker is passenger air transport
 	local ret = this.helpers[0].CreateNewRoute();
 	if (!ret && this.ticker != 0) {
@@ -74,8 +79,8 @@ function Mungo::Start() {
 	for(local i = 0; true; i++) {
 		Warning("Starting iteration: " + i)
 		
-		if ((this.ticker % this.delay_build_airport_route == 0 || this.ticker == 0) && HasMoney(100000)) {
-			if (!this.MoneyMaker()) {
+		if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
+			if (!this.NewRoutes()) {
 				return
 			}
 		}
@@ -84,10 +89,12 @@ function Mungo::Start() {
 		// TODO add vehicles to stations when cargo is waiting
 		this.HouseKeeping();
 
-		// Manage the routes once in a while
-		this.helpers[0].UpgradePositiveVehicles();
-		this.helpers[0].SellNegativeVehicles();
-		this.helpers[0].ManageRoutes();
+		// // Manage the routes once in a while
+		// this.helpers[0].SellNegativeVehicles();
+		// this.helpers[0].ManageRoutes();
+
+		this.helpers[1].SellNegativeVehicles();
+		this.helpers[1].ManageRoutes();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);

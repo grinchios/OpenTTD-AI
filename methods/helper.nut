@@ -33,6 +33,8 @@ function Helper::Init() {
 
     this.cargo_list.append(GetCargoID(AICargo.CC_PASSENGERS));
     this.cargo_list.append(GetCargoID(AICargo.CC_MAIL));
+
+    AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
 }
 
 function Helper::SetDepotName(station_id, limit, depot_tile) {
@@ -50,7 +52,7 @@ function Helper::SetVehicleName(vehicle_id, name) {
     return true;
 }
 
-function Helper::UpgradePositiveVehicles() {
+function Helper::UpgradeVehicles() {
     if (this.VEHICLETYPE==AIVehicle.VT_AIR) {
         local vehicle_sizes = [AIAirport.PT_SMALL_PLANE, AIAirport.PT_BIG_PLANE]
         local airport_types = [AIAirport.AT_COMMUTER, AIAirport.AT_METROPOLITAN]
@@ -120,12 +122,6 @@ function Helper::SellNegativeVehicles() {
 function Helper::SellRoute(i) {
     if (this.VEHICLETYPE == AIVehicle.VT_AIR) {
         this.AirHelper.SellAirports(i);
-    }
-}
-
-function Helper::FurthestTownTileFromTown(i, tile) {
-    for (town = town_list.Begin(); town_list.HasNext(); town = town_list.Next()) {
-
     }
 }
 

@@ -21,3 +21,9 @@ function Warning(message) {
 function Error(message) {
     AILog.Error("[*] " + GetDate() + " - " + message);
 }
+
+function OutputList(list) {
+    for (local element = list.Begin(); list.HasNext(); element = list.Next()) {
+        Info("Key:" + element + " Value:" + list.GetValue(element));
+    }
+}

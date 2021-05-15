@@ -18,6 +18,7 @@ class Mungo extends AIController {
   	} 
 }
 
+// TODO bus upgrades
 function Mungo::Init() {
 	NameCompany();
 
@@ -43,10 +44,11 @@ function Mungo::Init() {
 	return true;
 }
 
+// TODO change variable names for the new buses too
 // TODO setup buses if air transport disabled or too early
 function Mungo::NewRoutes() {
 	// Initial moneymaker is passenger air transport
-	local ret = this.helpers[0].CreateNewRoute();
+	local ret = this.helpers[0].CreateNewRoute() || this.helpers[1].CreateNewRoute();
 	if (!ret && this.ticker != 0) {
 		/* No more route found, delay even more before trying to find an other */
 		this.delay_build_airport_route = 10000;
@@ -93,6 +95,7 @@ function Mungo::Start() {
 		// this.helpers[0].SellNegativeVehicles();
 		// this.helpers[0].ManageRoutes();
 
+		this.helpers[1].CreateNewRoute();
 		this.helpers[1].SellNegativeVehicles();
 		this.helpers[1].ManageRoutes();
 

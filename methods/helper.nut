@@ -33,8 +33,6 @@ function Helper::Init() {
 
     this.cargo_list.append(GetCargoID(AICargo.CC_PASSENGERS));
     this.cargo_list.append(GetCargoID(AICargo.CC_MAIL));
-
-    AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
 }
 
 function Helper::SetDepotName(station_id, limit, depot_tile) {
@@ -72,7 +70,7 @@ function Helper::UpgradeVehicles() {
                     local engine_best = this.SelectBestAircraft(airport_types[i], this.cargo_list[0], AIEngine.GetMaximumOrderDistance(engine_existing))
                     if (engine_best != engine_existing && engine_best != null) {
                         AIGroup.SetAutoReplace(AIGroup.GROUP_ALL, engine_existing, engine_best);
-                        Info(AIEngine.GetName(engine_existing) + " will be replaced by " + AIEngine.GetName(engine_best));
+                        // Info(AIEngine.GetName(engine_existing) + " will be replaced by " + AIEngine.GetName(engine_best));
                     }
                 }
             }
@@ -87,6 +85,10 @@ function Helper::SellNegativeVehicles() {
 
 	list.Valuate(AIVehicle.GetAge);
 
+    local threshold;
+    if (this.VEHICLETYPE==AIVehicle.VT_AIR) {threshold=10000}
+    else if (this.VEHICLETYPE==AIVehicle.VT_ROAD) {threshold=2000}
+
 	// Give the plane at least 2 years to make a difference
 	list.KeepAboveValue(365 * 2);
 	list.Valuate(AIVehicle.GetProfitLastYear);
@@ -95,7 +97,7 @@ function Helper::SellNegativeVehicles() {
 		local profit = list.GetValue(i);
 
 		// Profit last year and this year bad? Let's sell the vehicle
-		if (profit < 10000 && AIVehicle.GetProfitThisYear(i) < 10000) {
+		if (profit < threshold && AIVehicle.GetProfitThisYear(i) < threshold) {
 			// Send the vehicle to depot if we didn't do so yet
 			if (!Mungo.vehicle_to_depot.rawin(i) || Mungo.vehicle_to_depot.rawget(i) != true) {
 				Info("Sending " + i + " to depot as profit is: " + profit + " / " + AIVehicle.GetProfitThisYear(i));
@@ -108,21 +110,39 @@ function Helper::SellNegativeVehicles() {
 		if (Mungo.vehicle_to_depot.rawin(i) && Mungo.vehicle_to_depot.rawget(i) == true) {
 			if (AIVehicle.SellVehicle(i)) {
 				Warning("Selling " + i + " as it is finally in a depot.");
-		
-				// Check if we are the last one serving those airports; else sell the airports
-				local list2 = AIVehicleList_Station(AIStation.GetStationID(this.route_1.GetValue(i)));
-				if (list2.Count() == 0) this.SellRoute(i);
+
+                // Check if we are the last one serving those stops; else sell the stops
+                local list2 = AIVehicleList_Station(AIStation.GetStationID(this.route_1.GetValue(i)));
+                if (list2.Count() == 0) this.SellRoute(i);
+
 				Mungo.vehicle_to_depot.rawdelete(i);
 			}
 		}
 	}
 }
 
+// TODO sell road depot when selling route
 // TODO Improve this
 function Helper::SellRoute(i) {
+    Info("Removing stop as nobody serves them anymore.");
     if (this.VEHICLETYPE == AIVehicle.VT_AIR) {
-        this.AirHelper.SellAirports(i);
+        AIAirport.RemoveAirport(this.route_1.GetValue(i));
+	    AIAirport.RemoveAirport(this.route_2.GetValue(i));
+    } else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) {
+        AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
+	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
     }
+    this.ClearRoute(i);
+}
+
+function Helper::ClearRoute(i) {
+    // Free the entries
+	this.towns_used.RemoveValue(this.route_1.GetValue(i));
+	this.towns_used.RemoveValue(this.route_2.GetValue(i));
+
+	// Remove the route
+	this.route_1.RemoveItem(i);
+	this.route_2.RemoveItem(i);
 }
 
 function Helper::KeepTopPercent(input_list, percent) {
@@ -132,12 +152,14 @@ function Helper::KeepTopPercent(input_list, percent) {
     return input_list;
 }
 
-function Helper::CanAffordCheapestEngine() {
-    return HasMoney(this.CheapestEngine());
+function Helper::CanAffordCheapestEngine(cargo) {
+    return HasMoney(this.CheapestEngine(cargo));
 }
 
-function Helper::CheapestEngine() {
+function Helper::CheapestEngine(cargo) {
     local engine_list = AIEngineList(this.VEHICLETYPE)
+    engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
+	engine_list.KeepValue(1);
     engine_list.Valuate(AIEngine.GetPrice)
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
     return engine_list.GetValue(engine_list.Begin());
@@ -163,4 +185,112 @@ function Helper::DebugSign(tile, message) {
             }
         }
     }
+}
+
+function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
+    this.pathfinder.InitializePath([tile_1], [tile_2]);
+    local depot_tile = -1;
+    
+	// Try to find a path.
+	local path = false;
+	while (path == false) {
+		path = this.pathfinder.FindPath(100);
+		Mungo.Sleep(1);
+	}
+
+	if (path == null) {
+		// No path was found.
+		Error("PathFinder Error");
+        return -1;
+	}
+
+    /// If a path was found, build a road over it.
+	while (path != null) {
+		local par = path.GetParent();
+		if (par != null) {
+			local last_node = path.GetTile();
+			if (AIMap.DistanceManhattan(path.GetTile(), par.GetTile()) == 1 ) {
+				if (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
+					// An error occured while building a piece of road. TODO: handle it
+					// Note that is can also be the case that the road was already build
+                    if (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT) {}
+                    else {
+                        while (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
+                            Mungo.Sleep(10);
+                            Error("Error building road " + AIError.GetLastErrorString());
+                        }
+                    }
+				} 
+				if (depot_tile<0) {
+					depot_tile = this.BuildDepotForRoute(path.GetTile())
+					if (depot_tile>0) {
+						local built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+						while (!built) {
+							Error("Error building new depot");
+							Error(AIError.GetLastErrorString());
+							Mungo.Sleep(1);
+							built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+						}
+						AIRoad.BuildRoad(depot_tile, path.GetTile())
+						this.DebugSign(depot_tile, "New Depot")
+					}
+				}
+			} else {
+				// Build a bridge or tunnel
+				if (!AIBridge.IsBridgeTile(path.GetTile()) && !AITunnel.IsTunnelTile(path.GetTile())) {
+					/* If it was a road tile, demolish it first. Do this to work around expended roadbits. */
+					if (AIRoad.IsRoadTile(path.GetTile())) AITile.DemolishTile(path.GetTile());
+					if (AITunnel.GetOtherTunnelEnd(path.GetTile()) == par.GetTile()) {
+					if (!AITunnel.BuildTunnel(AIVehicle.VT_ROAD, path.GetTile())) {
+						/* An error occured while building a tunnel. TODO: handle it. */
+					}
+					} else {
+						local bridge_list = AIBridgeList_Length(AIMap.DistanceManhattan(path.GetTile(), par.GetTile()) + 1);
+						bridge_list.Valuate(AIBridge.GetMaxSpeed);
+						bridge_list.Sort(AIAbstractList.SORT_BY_VALUE, false);
+						if (!AIBridge.BuildBridge(AIVehicle.VT_ROAD, bridge_list.Begin(), path.GetTile(), par.GetTile())) {
+							/* An error occured while building a bridge. TODO: handle it. */
+						}
+					}
+				}
+			}
+		}
+		path = par;
+	}
+
+    return depot_tile;
+}
+
+function Helper::BuildDepotForRoute(tile) {
+	local list = AITileList();
+	local point_towards;
+	list.AddTile(tile)
+
+	// Walk all the tiles and see if we can build the depot at all
+	Mungo.Sleep(1);
+
+	local test = AITestMode();
+	{
+		point_towards = tile+AIMap.GetTileIndex(0, 1);
+		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile)) {
+			return point_towards;
+		}
+
+		point_towards = tile+AIMap.GetTileIndex(0, -1);
+		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile)) {
+			return point_towards;
+		}
+
+		point_towards = tile+AIMap.GetTileIndex(1, 0);
+		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile)) {
+			return point_towards;
+		}
+
+		point_towards = tile+AIMap.GetTileIndex(-1, 0);
+		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile)) {
+			return point_towards;
+		} 
+	}
+
+	return -1;
 }

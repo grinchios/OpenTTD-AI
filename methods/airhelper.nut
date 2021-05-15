@@ -2,7 +2,7 @@
 // TODO check aircraft limits
 class AirHelper extends Helper {
 	towns_used = null;
-	DEBUG = true;
+	DEBUG = false;
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_AIR;
@@ -25,7 +25,7 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 	// Check we have enough money for the cheapest plane
 	engine_list.Valuate(AIEngine.GetPrice)
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-	if (!this.CanAffordCheapestEngine()) {return -1}
+	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
 
 	engine_list.Valuate(AIEngine.GetPrice);
 	engine_list.KeepBelowValue(CurrentFunds()/2);
@@ -113,11 +113,6 @@ function AirHelper::CreateNewRoute() {
 		this.towns_used.RemoveValue(tile_2);
 		return false;
 	} else {
-		local location = AIStation.GetStationID(tile_1);
-		// this.SetDepotName(location, 0, 0);
-		
-		location = AIStation.GetStationID(tile_2);
-		// this.SetDepotName(location, 0, 0);
 		Info("Done building a route");
 		return true;
 	}
@@ -157,8 +152,6 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 	for (local town = town_list.Begin(); town_list.HasNext(); town = town_list.Next()) {
 		// Don't make this a CPU hog
 		Mungo.Sleep(1);
-
-    	if (this.towns_used.HasItem(town)) continue;
 
 		local tile = AITown.GetLocation(town);
 
@@ -289,7 +282,7 @@ function AirHelper::ManageRoutes() {
 			Info("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
 
 			local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
-			local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
+			local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v)))
 			
 			if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine");return false}
 
@@ -299,22 +292,4 @@ function AirHelper::ManageRoutes() {
 			return this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
 		}
 	}
-}
-
-function AirHelper::SellAirports(i) {
-	// Sells the airports from route index i
-	// Removes towns from towns_used list too
-
-	// Remove the airports
-	Info("Removing airports as nobody serves them anymore.");
-	AIAirport.RemoveAirport(this.route_1.GetValue(i));
-	AIAirport.RemoveAirport(this.route_2.GetValue(i));
-
-	// Free the entries
-	this.towns_used.RemoveValue(this.route_1.GetValue(i));
-	this.towns_used.RemoveValue(this.route_2.GetValue(i));
-
-	// Remove the route
-	this.route_1.RemoveItem(i);
-	this.route_2.RemoveItem(i);
 }

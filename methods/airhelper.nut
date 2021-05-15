@@ -158,16 +158,14 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		// Create a 30x30 grid around the core of the town and see if we can find a spot for a small airport
 		local list = AITileList();
 
-		// We assume we are more than 15 tiles away from the border!
-		list.AddRectangle(tile - AIMap.GetTileIndex(15, 15), tile + AIMap.GetTileIndex(15, 15));
+		local span = AIMap.DistanceFromEdge(tile) <= 15 ? AIMap.DistanceFromEdge(tile) - 1 : 15;
+		list.AddRectangle(tile - AIMap.GetTileIndex(span, span), tile + AIMap.GetTileIndex(span, span));
 		list.Valuate(AITile.IsBuildableRectangle, airport_x, airport_y);
 		list.KeepValue(1);
 
 		// Sort on acceptance, remove places that don't have acceptance 
 		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
 		list.RemoveBelowValue(50);
-		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
-		list.RemoveBelowValue(10);
 
 		if (center_tile != 0) {
 			// If we have a tile defined, we don't want to be within X tiles
@@ -175,10 +173,6 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 			list.Valuate(AITile.GetDistanceSquareToTile, center_tile);
 			list.KeepAboveValue(625);
 		}
-
-		// Sort on acceptance, remove places that don't have acceptance
-		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
-		list.RemoveBelowValue(10);
 
 		// Couldn't find a suitable place for this town, skip to the next
 		if (list.Count() == 0) continue; 
@@ -256,8 +250,7 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 // TODO upgrade airports
 // TODO upgrade current planes in service if they've earnt enough money
 function AirHelper::ManageRoutes() {
-	// Don't try to add planes when we are short on cash
-	if (!this.CanAffordCheapestEngine()) return;
+	local counter = 0
 
 	// Upgrade routes for all cargo routes we currently service
 	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
@@ -266,6 +259,9 @@ function AirHelper::ManageRoutes() {
 		list.KeepAboveValue(250);
 
 		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
+			// Don't try to add planes when we are short on cash
+			if (!this.CanAffordCheapestEngine()) return counter;
+
 			local list2 = AIVehicleList_Station(station_id);
 			// No vehicles going to this station, abort and sell
 			if (list2.Count() == 0) {
@@ -289,7 +285,10 @@ function AirHelper::ManageRoutes() {
 			// Make sure we have enough money
 			GetMoney(AIEngine.GetPrice(engine));
 
-			return this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
+			this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
+			counter++
 		}
 	}
+
+	return counter;
 }

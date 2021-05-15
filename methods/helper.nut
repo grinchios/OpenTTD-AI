@@ -1,3 +1,6 @@
+// TODO new function to check if we've built everywhere possible
+// TODO replace vehicle function
+// TODO new route class with estimated cost, test build and other useful things
 class Helper {
     route_1 = null;
 	route_2 = null;
@@ -6,11 +9,6 @@ class Helper {
 
     cargo_list = []
 };
-
-function Helper::FindSuitableLocation(){}
-function Helper::BuildNewVehicle(){}
-function Helper::UpgradeRoutes(){}
-function Helper::SellAirports(){}
 
 function Helper::Init() {
     // Starting function for all helpers
@@ -238,7 +236,7 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
 			} else {
 				// Build a bridge or tunnel
 				if (!AIBridge.IsBridgeTile(path.GetTile()) && !AITunnel.IsTunnelTile(path.GetTile())) {
-					/* If it was a road tile, demolish it first. Do this to work around expended roadbits. */
+					// If it was a road tile, demolish it first. Do this to work around expended roadbits
 					if (AIRoad.IsRoadTile(path.GetTile())) AITile.DemolishTile(path.GetTile());
 					if (AITunnel.GetOtherTunnelEnd(path.GetTile()) == par.GetTile()) {
 					if (!AITunnel.BuildTunnel(AIVehicle.VT_ROAD, path.GetTile())) {
@@ -257,7 +255,6 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
 		}
 		path = par;
 	}
-
     return depot_tile;
 }
 

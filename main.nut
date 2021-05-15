@@ -48,13 +48,12 @@ function Mungo::Init() {
 // TODO setup buses if air transport disabled or too early
 function Mungo::NewRoutes() {
 	// Initial moneymaker is passenger air transport
-	local ret = this.helpers[0].CreateNewRoute() || this.helpers[1].CreateNewRoute();
-	if (!ret && this.ticker != 0) {
-		/* No more route found, delay even more before trying to find an other */
-		this.delay_build_airport_route = 10000;
+	if (this.helpers[0].CreateNewRoute()) {
 		return true;
-	} else if (!ret && this.ticker == 0) {
-		/* The AI failed to build a first airport and is deemed a failure */
+	} else if (this.helpers[1].CreateNewRoute()) {
+		return true;
+	} else if (this.ticker == 0) {
+		/* The AI failed to build a first route and is deemed a failure */
 		AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
 		Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
 		AICompany.SetLoanAmount(0);
@@ -68,6 +67,15 @@ function Mungo::HouseKeeping() {
     Mungo.HandleEvents();
     RepayLoan();
 	StatuesInTowns();
+}
+
+function Mungo::ManageRoutes() {
+	local counter = 0
+	for (local i = this.helpers[0]; i < this.helpers.len(); i++) {
+		i.SellNegativeVehicles();
+		counter += i.ManageRoutes();
+	}
+	Warning("Upgraded " + counter + " routes");
 }
 
 // TODO buses for all towns under 200 distance
@@ -87,17 +95,7 @@ function Mungo::Start() {
 			}
 		}
 		
-		// TODO remove negative vehicles
-		// TODO add vehicles to stations when cargo is waiting
 		this.HouseKeeping();
-
-		// // Manage the routes once in a while
-		// this.helpers[0].SellNegativeVehicles();
-		// this.helpers[0].ManageRoutes();
-
-		this.helpers[1].CreateNewRoute();
-		this.helpers[1].SellNegativeVehicles();
-		this.helpers[1].ManageRoutes();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);
@@ -155,6 +153,8 @@ function Mungo::HandleEvents() {
 				} else if (crash_reason == AIEventVehicleCrashed.CRASH_RV_LEVEL_CROSSING) {
 					Info("Creating new level crossing");
 					break;
+				} else {
+					Info("Replacing vehicle")
 				}
 			} break;
 

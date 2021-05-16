@@ -5,7 +5,8 @@ class BusHelper extends Helper {
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_ROAD;
-		this.towns_used = TownsUsedForStationType(AIStation.STATION_BUS_STOP);
+		this.STATIONTYPE = AIStation.STATION_BUS_STOP
+		this.towns_used = TownsUsedForStationType(this.STATIONTYPE);
 
 		this.pathfinder = RoadPathFinder();
 
@@ -69,7 +70,8 @@ function BusHelper::CreateNewRoute() {
 		Info("New route will cost " + costs.GetCosts())
 	}
 	
-	if (depot_tile<0 || !HasMoney(costs.GetCosts())) {
+	// !HasMoney(costs.GetCosts())
+	if (depot_tile<0) {
 		Error("Removing route due to error");
 		this.towns_used.RemoveValue(tile_1);
 		AIRoad.RemoveRoadStation(tile_1);
@@ -78,7 +80,7 @@ function BusHelper::CreateNewRoute() {
 		return false;
 	}
 
-	GetMoney(costs.GetCosts())
+	// GetMoney(costs.GetCosts())
 	depot_tile = RoadPathCreator(tile_1, tile_2);
 
 	Info("Done building new route");
@@ -105,12 +107,13 @@ function BusHelper::CreateNewRoute() {
 
 // TODO merge with aircraft function
 function BusHelper::SelectBestEngine(cargo, distance, maximum_cost=INFINITY) {
+	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
+
 	local engine_list = AIEngineList(this.VEHICLETYPE)
 	
-	// Check we have enough money for the cheapest engine
-	engine_list.Valuate(AIEngine.GetPrice)
-	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
+	 
+	engine_list.Valuate(AIEngine.GetRoadType);
+	engine_list.KeepValue(AIRoad.ROADTYPE_ROAD);
 
 	engine_list.Valuate(AIEngine.GetPrice);
 	engine_list.KeepBelowValue(CurrentFunds()/2);
@@ -232,16 +235,23 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot=0){
 	// The best available aircraft of that time will be bought.
 
 	if (!AIRoad.IsRoadDepotTile(depot)) {
-		Error("Invalid depot selected: " + depot)
+		Error("Invalid depot selected: " + depot);
+	} else if (!AIEngine.IsValidEngine(engine)) {
+		Error("Invalid engine selected: " + engine);
 	}
 
 	// Get the shmoneys
+	if (!HasMoney(AIEngine.GetPrice(engine))) {return -1}
 	GetMoney(AIEngine.GetPrice(engine));
 	
 	local vehicle = AIVehicle.BuildVehicleWithRefit(depot, engine, cargo);
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
 		Mungo.Sleep(1);
 		vehicle = AIVehicle.BuildVehicleWithRefit(depot, engine, cargo);
+		Error(AIError.GetLastErrorString())
+		Info("Depot: "+depot+" engine: "+engine+" cargo: "+cargo);
+		Info(AIRoad.IsRoadDepotTile(depot)+" "+AIEngine.IsValidEngine(engine)+" "+AICargo.IsValidCargo(cargo))
+		this.DebugSign(depot, "depot tile:"+depot)
 	}
 
 	// Send it on it's way
@@ -260,12 +270,13 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot=0){
 	return vehicle;
 }
 
+// TODO merge with aircraft one
 function BusHelper::ManageRoutes() {
 	local counter = 0;
 
 	// Upgrade routes for all cargo routes we currently service
 	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
-		local list = AIStationList(AIStation.STATION_BUS_STOP);
+		local list = AIStationList(this.STATIONTYPE);
 		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
 		list.KeepAboveValue(100);
 
@@ -275,10 +286,10 @@ function BusHelper::ManageRoutes() {
 
 			local list2 = AIVehicleList_Station(station_id);
 			// No vehicles going to this station, abort and sell
-			if (list2.Count() == 0) {
-				this.SellRoute(i);
-				continue;
-			};
+			// if (list2.Count() == 0) {
+			// 	this.SellRoute(i);
+			// 	continue;
+			// };
 
 			// Do not build a new vehicle if we bought a new one in the last DISTANCE days
 			local v = list2.Begin();
@@ -294,14 +305,18 @@ function BusHelper::ManageRoutes() {
 			local engine = AIVehicle.GetEngineType(v);
 
 			// Make sure we have enough money
+			if (!HasMoney(AIEngine.GetPrice(engine))) {return counter}
 			GetMoney(AIEngine.GetPrice(engine));
 
+			local error_count = 0;
 			local new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
 			while (!AIVehicle.IsValidVehicle(new_vehicle)) {
 				Mungo.Sleep(1);
 				Error("Error cloning vehicle");
 				Error(AIError.GetLastErrorString());
 				new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
+				error_count++;
+				if (error_count>10) {return counter;}
 			}
 
 			counter++

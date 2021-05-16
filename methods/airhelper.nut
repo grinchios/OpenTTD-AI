@@ -6,7 +6,8 @@ class AirHelper extends Helper {
 
 	constructor() {
 		this.VEHICLETYPE = AIVehicle.VT_AIR;
-		this.towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);
+		this.STATIONTYPE = AIStation.STATION_AIRPORT;
+		this.towns_used = TownsUsedForStationType(this.STATIONTYPE);
 
 		this.Init();
 	}
@@ -14,6 +15,8 @@ class AirHelper extends Helper {
 
 // TODO add in maximum cost to calls, used when we know the cost of airports
 function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_cost=INFINITY) {
+	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
+
 	local engine_list = AIEngineList(this.VEHICLETYPE)
 
 	// Remove big planes if we use a smaller airport type
@@ -22,14 +25,6 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 		engine_list.RemoveValue(AIAirport.PT_BIG_PLANE);
 	}
 
-	// Check we have enough money for the cheapest plane
-	engine_list.Valuate(AIEngine.GetPrice)
-	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
-
-	engine_list.Valuate(AIEngine.GetPrice);
-	engine_list.KeepBelowValue(CurrentFunds()/2);
-	
 	engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
 	engine_list.KeepValue(1);
 
@@ -41,14 +36,12 @@ function AirHelper::SelectBestAircraft(airport_type, cargo, distance, maximum_co
 		}
 	}
 
+	engine_list.Valuate(AIEngine.GetPrice);
+	engine_list.KeepBelowValue(MaximumBudget()/2);
+
 	engine_list.Valuate(this.EngineUse);
 	engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 	engine_list.KeepTop(1);
-
-  	// // Get the biggest plane for our cargo
-	// engine_list.Valuate(AIEngine.GetCapacity);
-	// engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	// engine_list.KeepTop(1);
 
 	return engine_list.Begin();
 }
@@ -218,6 +211,7 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	local hangar = AIAirport.GetHangarOfAirport(tile_1);
 
 	// Get the shmoneys
+	if (!HasMoney(AIEngine.GetPrice(engine))) {return -1}
 	GetMoney(AIEngine.GetPrice(engine));
 	
 	local vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
@@ -254,20 +248,20 @@ function AirHelper::ManageRoutes() {
 
 	// Upgrade routes for all cargo routes we currently service
 	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
-		local list = AIStationList(AIStation.STATION_AIRPORT);
+		local list = AIStationList(this.STATIONTYPE);
 		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
 		list.KeepAboveValue(250);
 
 		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
 			// Don't try to add planes when we are short on cash
-			if (!this.CanAffordCheapestEngine()) return counter;
+			if (!this.CanAffordCheapestEngine(this.cargo_list[i])) return counter;
 
 			local list2 = AIVehicleList_Station(station_id);
-			// No vehicles going to this station, abort and sell
-			if (list2.Count() == 0) {
-				this.SellRoute(i);
-				continue;
-			};
+			// // No vehicles going to this station, abort and sell
+			// if (list2.Count() == 0) {
+			// 	this.SellRoute(i);
+			// 	continue;
+			// };
 
 			// Do not build a new vehicle if we bought a new one in the last DISTANCE days
 			local v = list2.Begin();
@@ -278,15 +272,26 @@ function AirHelper::ManageRoutes() {
 			Info("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
 
 			local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
-			local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v)))
+			// local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v)))
 			
+			local engine = AIVehicle.GetEngineType(v);
+
 			if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine");return false}
 
 			// Make sure we have enough money
+			if (!HasMoney(AIEngine.GetPrice(engine))) {return counter}
 			GetMoney(AIEngine.GetPrice(engine));
 
-			this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
+			local new_vehicle = AIVehicle.CloneVehicle(AIAirport.GetHangarOfAirport(AIStation.GetLocation(station_id)), v, true);
+			while (!AIVehicle.IsValidVehicle(new_vehicle)) {
+				Mungo.Sleep(1);
+				Error("Error cloning vehicle");
+				Error(AIError.GetLastErrorString());
+				new_vehicle = AIVehicle.CloneVehicle(AIAirport.GetHangarOfAirport(AIStation.GetLocation(station_id)), v, true);
+			}
+			
 			counter++
+			// this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i]);
 		}
 	}
 

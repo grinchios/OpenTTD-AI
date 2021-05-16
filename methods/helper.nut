@@ -6,6 +6,7 @@ class Helper {
 	route_2 = null;
     vehicle_array = [];
     VEHICLETYPE = null;
+	STATIONTYPE = null;
 
     cargo_list = []
 };
@@ -119,7 +120,6 @@ function Helper::SellNegativeVehicles() {
 	}
 }
 
-// TODO sell road depot when selling route
 // TODO Improve this
 function Helper::SellRoute(i) {
     Info("Removing stop as nobody serves them anymore.");
@@ -129,6 +129,12 @@ function Helper::SellRoute(i) {
     } else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) {
         AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
 	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
+
+		local station_name = split(AIBaseStation.GetName(i).tostring(), " ")
+		if (station_name.len()==3 && AIRoad.IsRoadDepotTile(station_name[2].tointeger())) {
+			Warning(AIBaseStation.GetName(i) + " " + station_name.len())
+			AIRoad.RemoveRoadDepot(station_name[2].tointeger());
+		}
     }
     this.ClearRoute(i);
 }
@@ -213,21 +219,30 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
 					// Note that is can also be the case that the road was already build
                     if (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT) {}
                     else {
+						local errors = 0
                         while (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
                             Mungo.Sleep(10);
                             Error("Error building road " + AIError.GetLastErrorString());
+							errors++
                         }
+						if (errors>10) {
+							return -1;
+						}
                     }
 				} 
 				if (depot_tile<0) {
 					depot_tile = this.BuildDepotForRoute(path.GetTile())
 					if (depot_tile>0) {
 						local built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+						local errors = 0
 						while (!built) {
-							Error("Error building new depot");
-							Error(AIError.GetLastErrorString());
+							Error("Error building new depot " + AIError.GetLastErrorString());
 							Mungo.Sleep(1);
 							built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+							errors++
+							if (errors>10) {
+								return -1;
+							}
 						}
 						AIRoad.BuildRoad(depot_tile, path.GetTile())
 						this.DebugSign(depot_tile, "New Depot")
@@ -290,4 +305,18 @@ function Helper::BuildDepotForRoute(tile) {
 	}
 
 	return -1;
+}
+
+function Helper::RemoveNullStations() {
+	local counter = 0;
+
+	local list = AIStationList(this.STATIONTYPE);
+	for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
+		local list2 = AIVehicleList_Station(station_id);
+		if (list2.Count() == 0) {
+				this.SellRoute(station_id);
+				continue;
+		};
+	}
+	return counter;
 }

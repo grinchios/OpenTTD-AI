@@ -70,12 +70,15 @@ function Mungo::HouseKeeping() {
 }
 
 function Mungo::ManageRoutes() {
-	local counter = 0
-	for (local i = this.helpers[0]; i < this.helpers.len(); i++) {
-		i.SellNegativeVehicles();
-		counter += i.ManageRoutes();
+	local counter_upgraded = 0
+	local counter_sold = 0
+	for (local i = 0; i < this.helpers.len(); i++) {
+		this.helpers[i].SellNegativeVehicles();
+		counter_upgraded += this.helpers[i].ManageRoutes();
+		counter_sold += this.helpers[i].RemoveNullStations();
 	}
-	Warning("Upgraded " + counter + " routes");
+	if (counter_upgraded>0) {Warning("Upgraded " + counter_upgraded + " routes");}
+	if (counter_sold>0) {Warning("Sold " + counter_sold + " routes")};
 }
 
 // TODO buses for all towns under 200 distance
@@ -91,11 +94,15 @@ function Mungo::Start() {
 		
 		if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
 			if (!this.NewRoutes()) {
-				return
+				while (true) {
+					Error(AIError.GetLastErrorString());
+				}
+				return;
 			}
 		}
 		
 		this.HouseKeeping();
+		this.ManageRoutes();
 
 		// Make sure we do not create infinite loops
 		Sleep(this.sleepingtime);

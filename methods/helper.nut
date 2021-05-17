@@ -122,20 +122,24 @@ function Helper::SellNegativeVehicles() {
 
 // TODO Improve this
 function Helper::SellRoute(i) {
-    Info("Removing stop as nobody serves them anymore.");
     if (this.VEHICLETYPE == AIVehicle.VT_AIR) {
         AIAirport.RemoveAirport(this.route_1.GetValue(i));
 	    AIAirport.RemoveAirport(this.route_2.GetValue(i));
     } else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) {
-        AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
-	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
-
-		local station_name = split(AIBaseStation.GetName(i).tostring(), " ")
+		Info(AIBaseStation.GetName(i))
+		local station_name = AIBaseStation.GetName(i)
+		station_name = split(station_name.tostring(), " ")
 		if (station_name.len()==3 && AIRoad.IsRoadDepotTile(station_name[2].tointeger())) {
 			Warning(AIBaseStation.GetName(i) + " " + station_name.len())
 			AIRoad.RemoveRoadDepot(station_name[2].tointeger());
 		}
-    }
+		Info(this.route_1.GetValue(i))
+        AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
+	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
+    } else {
+		Error("Invalid vehicle type:" + this.VEHICLETYPE);
+		Error(AIError.GetLastErrorString());
+	}
     this.ClearRoute(i);
 }
 
@@ -182,10 +186,10 @@ function Helper::DebugSign(tile, message) {
         {
             local mode = AIExecMode();
             local debug_sign = AISign.BuildSign(tile, message);
-            while (!AISign.IsValidSign(debug_sign)) {
+            while (!AISign.IsValidSign(debug_sign) && AIMap.IsValidTile(tile)) {
                 Mungo.Sleep(1);
                 debug_sign = AISign.BuildSign(tile, message);
-                Error(AIError.GetLastErrorString() + tile);
+                Error(AIError.GetLastErrorString() + " " + tile);
             }
         }
     }
@@ -223,11 +227,12 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
                         while (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
                             Mungo.Sleep(10);
                             Error("Error building road " + AIError.GetLastErrorString());
-							errors++
-                        }
-						if (errors>10) {
-							return -1;
-						}
+
+							if (++errors>10) {
+								return -1;
+							}
+						}	
+						
                     }
 				} 
 				if (depot_tile<0) {
@@ -309,12 +314,14 @@ function Helper::BuildDepotForRoute(tile) {
 
 function Helper::RemoveNullStations() {
 	local counter = 0;
-
 	local list = AIStationList(this.STATIONTYPE);
+	list.Valuate(AIBaseStation.GetLocation);
+
 	for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
 		local list2 = AIVehicleList_Station(station_id);
 		if (list2.Count() == 0) {
 				this.SellRoute(station_id);
+				counter++
 				continue;
 		};
 	}

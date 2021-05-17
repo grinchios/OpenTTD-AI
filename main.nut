@@ -94,7 +94,7 @@ function Mungo::Start() {
 		
 		if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
 			if (!this.NewRoutes()) {
-				while (true) {
+				while (1==1) {
 					Error(AIError.GetLastErrorString());
 				}
 				return;

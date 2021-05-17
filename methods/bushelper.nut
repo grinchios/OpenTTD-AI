@@ -87,7 +87,7 @@ function BusHelper::CreateNewRoute() {
 
 	local engine = this.SelectBestEngine(this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
 
-	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0], depot_tile)<0) {
+	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0], depot_tile)) {
 		Error("Removing route due to error");
 		this.towns_used.RemoveValue(tile_1);
 		AIRoad.RemoveRoadStation(tile_1);
@@ -230,14 +230,16 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 
 }
 
-function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot=0){
+function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot){
 	// Build an aircraft with orders from tile_1 to tile_2.
 	// The best available aircraft of that time will be bought.
 
 	if (!AIRoad.IsRoadDepotTile(depot)) {
 		Error("Invalid depot selected: " + depot);
-	} else if (!AIEngine.IsValidEngine(engine)) {
+		return false;
+	} else if (!AIEngine.IsValidEngine(engine) || engine<=0) {
 		Error("Invalid engine selected: " + engine);
+		return false;
 	}
 
 	// Get the shmoneys
@@ -267,7 +269,7 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot=0){
 
 	Info("Done building a vehicle #" + this.vehicle_array.len());
 
-	return vehicle;
+	return true;
 }
 
 // TODO merge with aircraft one
@@ -299,7 +301,8 @@ function BusHelper::ManageRoutes() {
 
 			// Warning("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
 
-			local station_name = split(AIBaseStation.GetName(station_id).tostring(), " ")
+			local station_name = AIBaseStation.GetName(station_id)
+			station_name = split(station_name.tostring(), " ")
 			// local engine = this.SelectBestEngine(this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
 			
 			local engine = AIVehicle.GetEngineType(v);

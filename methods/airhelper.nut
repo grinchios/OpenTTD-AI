@@ -259,7 +259,7 @@ function AirHelper::ManageRoutes() {
 			local list2 = AIVehicleList_Station(station_id);
 			// // No vehicles going to this station, abort and sell
 			// if (list2.Count() == 0) {
-			// 	this.SellRoute(i);
+			// 	this.SellRoute(station_id);
 			// 	continue;
 			// };
 

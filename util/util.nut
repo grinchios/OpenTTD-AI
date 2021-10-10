@@ -32,7 +32,6 @@ function split(message, split_on) {
 	return split_message
 }
 
-// TODO improve for loop with Valuate
 function TownsUsedForStationType(station_Type) {
 	local list = AIStationList(station_Type);
 	local all_towns = AITownList();
@@ -60,7 +59,6 @@ function GetCargoID(cargo) {
 	return list.Begin();
 }
 
-// TODO validate this works, appears to only run once
 function StatuesInTowns() {
 	local towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);
 

@@ -16,8 +16,14 @@ class BusHelper extends Helper {
 	}
 }
 
-function BusHelper::NewRouteCost() {
-	return AIRoad.GetBuildCost(AIRoad.ROADTYPE_ROAD, AIRoad.BT_BUS_STOP)*2
+function BusHelper::CleanUp(tile_1, tile_2, progress) {
+	this.towns_used.RemoveValue(tile_1);
+	this.towns_used.RemoveValue(tile_2);
+
+	if (progress==2) {
+		AIRoad.RemoveRoadStation(tile_2);
+	}
+	return true;
 }
 
 // TODO adjust max distance based on bus speed
@@ -35,71 +41,65 @@ function BusHelper::CreateNewRoute() {
 		return false;
 	}
 
-	this.DebugSign(tile_1, "bus stop 1");
-	this.DebugSign(tile_2, "bus stop 2");
+	// this.DebugSign(tile_1, "bus stop 1");
+	// this.DebugSign(tile_2, "bus stop 2");
 	
 	// Get enough money to work with
-	if (!HasMoney(this.NewRouteCost())) {return false;}
-	GetMoney(this.NewRouteCost());
+	local costs = AIAccounting();
+	local pathCost = 0;
+	local roadList = []
+	costs.ResetCosts();
+
+	// Test build
+	{
+		local test = AITestMode();
+		roadList = RoadPathCreator(tile_1, tile_2);
+		pathCost = roadList[1] + AIRoad.GetBuildCost(AIRoad.ROADTYPE_ROAD, AIRoad.BT_BUS_STOP)*2
+		GetMoney(pathCost)
+	}
+
+	// Check we can afford it and the path was successful
+	if (!HasMoney(pathCost)) {
+		Error("Not enough money available")
+		this.CleanUp(tile_1, tile_2, 1)
+		return false;
+	} else if (roadList[0]<0 && HasMoney(pathCost)) {
+		Error("Removing route due to error");
+		this.CleanUp(tile_1, tile_2, 1)
+		return false;
+	}
 
 	// Build the route for real
 	if (!this.BuildAllAngles(tile_1)) {
 		Error("Failed on the first stop at tile " + tile_1);
-		this.towns_used.RemoveValue(tile_1);
-		this.towns_used.RemoveValue(tile_2);
-		Error(AIError.GetLastErrorString());
+		this.CleanUp(tile_1, tile_2, 1)
 		return false;
 	}
 
 	if (!this.BuildAllAngles(tile_2)) {
 		Error("Failed on the second stop at tile " + tile_2);
-		AIRoad.RemoveRoadStation(tile_1);
-		this.towns_used.RemoveValue(tile_1);
-		this.towns_used.RemoveValue(tile_2);
-		Error(AIError.GetLastErrorString());
+		Athis.CleanUp(tile_1, tile_2, 1)
 		return false;
 	}
 	
-	local depot_tile = -1;
-	local costs = AIAccounting();
-	costs.ResetCosts();
-
-	{
-		local test = AITestMode();
-		depot_tile = RoadPathCreator(tile_1, tile_2);
-		Info("New route will cost " + costs.GetCosts())
-	}
-	
-	// !HasMoney(costs.GetCosts())
-	if (depot_tile<0) {
-		Error("Removing route due to error");
-		this.towns_used.RemoveValue(tile_1);
-		AIRoad.RemoveRoadStation(tile_1);
-		this.towns_used.RemoveValue(tile_2);
-		AIRoad.RemoveRoadStation(tile_2);
-		return false;
-	}
-
 	// GetMoney(costs.GetCosts())
-	depot_tile = RoadPathCreator(tile_1, tile_2);
+	roadList = RoadPathCreator(tile_1, tile_2);
 
 	Info("Done building new route");
 
 	local engine = this.SelectBestEngine(this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
 
-	if (this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0], depot_tile)) {
+	if (!this.BuildNewVehicle(engine, tile_1, tile_2, this.cargo_list[0], roadList[0])) {
 		Error("Removing route due to error");
-		this.towns_used.RemoveValue(tile_1);
-		AIRoad.RemoveRoadStation(tile_1);
-		this.towns_used.RemoveValue(tile_2);
-		AIRoad.RemoveRoadStation(tile_2);
+		Error(AIError.GetLastErrorString());
+		this.CleanUp(tile_1, tile_2, 2)
 		return false;
 	} else {
 		local location = AIStation.GetStationID(tile_1);
-		this.SetDepotName(location, 0, depot_tile);
+		this.SetDepotName(location, 0, roadList[0]);
 		
 		location = AIStation.GetStationID(tile_2);
-		this.SetDepotName(location, 0, depot_tile);
+		this.SetDepotName(location, 0, roadList[0]);
 		Info("Done building a route");
 		return true;
 	}
@@ -157,7 +157,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 	// Remove all the towns we already used
 	town_list.RemoveList(this.towns_used);
 
-	// Keep large towns not too far away for the planes we have
+	// Keep large towns not too far away for the vehicles we have
 	if (center_tile!=0) {
 		town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
 		// if (this.DEBUG) {OutputList(town_list)}
@@ -166,7 +166,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 
 	town_list.Valuate(AITown.GetPopulation);
 	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	town_list.KeepTop(5);
+	town_list.KeepTop(10);
 
 	// Now find 2 suitable towns
 	for (local town = town_list.Begin(); town_list.HasNext(); town = town_list.Next()) {
@@ -174,15 +174,16 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 		Mungo.Sleep(1);
 
 		local tile = AITown.GetLocation(town);
-		this.DebugSign(tile, "tile:" + tile)
+		// this.DebugSign(tile, "tile:" + tile)
 
+		// Make sure the cities aren't at the edge of the map
 		local list = AITileList();
 		local span = AIMap.DistanceFromEdge(tile) <= 15 ? AIMap.DistanceFromEdge(tile) - 1 : 15;
 		list.AddRectangle(tile - AIMap.GetTileIndex(span, span), tile + AIMap.GetTileIndex(span, span));
 
 		// Sort on acceptance, remove places that don't have acceptance 
 		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
-		list.RemoveBelowValue(50);
+		list.RemoveBelowValue(9);
 
 		// Only keep roads and those without current stations for the stops
 		list.Valuate(AITile.HasTransportType, AITile.TRANSPORT_ROAD);
@@ -191,9 +192,9 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 		list.RemoveValue(1);
 
 		if (center_tile != 0) {
-			// If we have a tile defined, we don't want to be within 25 tiles of this tile
+			// If we have a tile defined, we don't want to be within 5 tiles of this tile
 			list.Valuate(AITile.GetDistanceSquareToTile, center_tile);
-			list.KeepAboveValue(625);
+			list.KeepAboveValue(25);
 		}
 
 		// Couldn't find a suitable place for this town, skip to the next
@@ -205,7 +206,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 
 			for (tile = list.Begin(); list.HasNext(); tile = list.Next()) {
 				Mungo.Sleep(1);
-				this.DebugSign(tile, "tile:"+tile);
+				// this.DebugSign(tile, "tile:"+tile);
 				if (!this.BuildAllAngles(tile)) {
 					continue;
 				}
@@ -251,10 +252,15 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot){
 		Mungo.Sleep(1);
 		vehicle = AIVehicle.BuildVehicleWithRefit(depot, engine, cargo);
 		Error(AIError.GetLastErrorString())
-		Info("Depot: "+depot+" engine: "+engine+" cargo: "+cargo);
-		Info(AIRoad.IsRoadDepotTile(depot)+" "+AIEngine.IsValidEngine(engine)+" "+AICargo.IsValidCargo(cargo))
-		this.DebugSign(depot, "depot tile:"+depot)
+		Info("Depot: " + depot + " engine: " + engine + " cargo: " + cargo);
+		Info(AIRoad.IsRoadDepotTile(depot) + " " + AIEngine.IsValidEngine(engine) + " " + AICargo.IsValidCargo(cargo))
+		// this.DebugSign(depot, "depot tile: "+ depot)
 	}
+
+	// Naming
+	this.SetVehicleName(vehicle, tile_1 + " " + tile_2 + " " + vehicle);
+	this.route_1.AddItem(vehicle, tile_1);
+	this.route_2.AddItem(vehicle, tile_2);
 
 	// Send it on it's way
 	AIOrder.AppendOrder(vehicle, tile_1, AIOrder.AIOF_NONE);
@@ -263,68 +269,7 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot){
 
   	this.vehicle_array.append(vehicle);
 
-	this.SetVehicleName(vehicle, tile_1 + " " + tile_2 + " " + vehicle);
-	this.route_1.AddItem(vehicle, tile_1);
-	this.route_2.AddItem(vehicle, tile_2);
-
 	Info("Done building a vehicle #" + this.vehicle_array.len());
 
 	return true;
-}
-
-// TODO merge with aircraft one
-function BusHelper::ManageRoutes() {
-	local counter = 0;
-
-	// Upgrade routes for all cargo routes we currently service
-	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
-		local list = AIStationList(this.STATIONTYPE);
-		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
-		list.KeepAboveValue(100);
-
-		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
-			// Don't try to add vehicles when we are short on cash
-			if (!CanAffordCheapestEngine(this.cargo_list[0])) return counter;
-
-			local list2 = AIVehicleList_Station(station_id);
-			// No vehicles going to this station, abort and sell
-			// if (list2.Count() == 0) {
-			// 	this.SellRoute(i);
-			// 	continue;
-			// };
-
-			// Do not build a new vehicle if we bought a new one in the last DISTANCE days
-			local v = list2.Begin();
-			list2.Valuate(AIVehicle.GetAge);
-			list2.KeepBelowValue(365);
-			if (list2.Count() != 0) continue;
-
-			// Warning("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
-
-			local station_name = AIBaseStation.GetName(station_id)
-			station_name = split(station_name.tostring(), " ")
-			// local engine = this.SelectBestEngine(this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v), this.route_2.GetValue(v)))
-			
-			local engine = AIVehicle.GetEngineType(v);
-
-			// Make sure we have enough money
-			if (!HasMoney(AIEngine.GetPrice(engine))) {return counter}
-			GetMoney(AIEngine.GetPrice(engine));
-
-			local error_count = 0;
-			local new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
-			while (!AIVehicle.IsValidVehicle(new_vehicle)) {
-				Mungo.Sleep(1);
-				Error("Error cloning vehicle");
-				Error(AIError.GetLastErrorString());
-				new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
-				error_count++;
-				if (error_count>10) {return counter;}
-			}
-
-			counter++
-			// return this.BuildNewVehicle(engine, this.route_1.GetValue(v), this.route_2.GetValue(v), this.cargo_list[i], station_name[2].tointeger());
-		}
-	}
-	return counter;
 }

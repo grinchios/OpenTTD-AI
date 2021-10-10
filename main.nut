@@ -18,12 +18,11 @@ class Mungo extends AIController {
   	} 
 }
 
-// TODO bus upgrades
 function Mungo::Init() {
 	NameCompany();
 
 	// Setup Helpers
-	this.helpers.append(AirHelper());
+	// this.helpers.append(AirHelper());
 	this.helpers.append(BusHelper());
 
 	// Auto-renew
@@ -39,23 +38,23 @@ function Mungo::Init() {
 	AICompany.SetAutoRenewMoney(100000);
 
 	// Auto replace
-	this.helpers[0].UpgradeVehicles();
+	// this.helpers[0].UpgradeVehicles();
 
 	return true;
 }
 
-// TODO change variable names for the new buses too
-// TODO setup buses if air transport disabled or too early
 function Mungo::NewRoutes() {
 	// Initial moneymaker is passenger air transport
-	if (this.helpers[0].CreateNewRoute()) {
-		return true;
-	} else if (this.helpers[1].CreateNewRoute()) {
-		return true;
-	} else if (this.ticker == 0) {
+	for (local i = 0; i < this.helpers.len(); i++) {
+		if (this.helpers[i].CreateNewRoute()) {
+			return true;
+		}
+	}
+	
+	if (this.ticker == 0) {
 		/* The AI failed to build a first route and is deemed a failure */
 		AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
-		Error("Failed to build first airport route, now giving up building. Repaying loan. Have a nice day!");
+		Error("Failed to build first route, now giving up building. Repaying loan. Have a nice day!");
 		AICompany.SetLoanAmount(0);
 		return false;
 	} else {
@@ -81,10 +80,6 @@ function Mungo::ManageRoutes() {
 	if (counter_sold>0) {Warning("Sold " + counter_sold + " routes")};
 }
 
-// TODO buses for all towns under 200 distance
-// TODO create strategies, infrastructure costs, limits on vehicles
-// TODO create vehicle groups based on what cargo they are carrying
-// TODO change reserve money based on monthly outgoings
 function Mungo::Start() {
 	if (!this.Init()) {return;}
 
@@ -92,14 +87,14 @@ function Mungo::Start() {
 	for(local i = 0; true; i++) {
 		Warning("Starting iteration: " + i)
 		
-		if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
+		// if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
 			if (!this.NewRoutes()) {
-				while (1==1) {
+				// while (1==1) {
 					Error(AIError.GetLastErrorString());
-				}
+				// }
 				return;
 			}
-		}
+		// }
 		
 		this.HouseKeeping();
 		this.ManageRoutes();

@@ -82,13 +82,13 @@ function Helper::SellNegativeVehicles() {
 	list.Valuate(AIVehicle.GetVehicleType);
 	list.KeepValue(this.VEHICLETYPE);
 
-	list.Valuate(AIVehicle.GetAge);
-
+	// Set up thresholds for vehicle types
     local threshold;
     if (this.VEHICLETYPE==AIVehicle.VT_AIR) {threshold=10000}
     else if (this.VEHICLETYPE==AIVehicle.VT_ROAD) {threshold=2000}
 
-	// Give the plane at least 2 years to make a difference
+	// Give the vehicle at least 2 years to make a difference
+	list.Valuate(AIVehicle.GetAge);
 	list.KeepAboveValue(365 * 2);
 	list.Valuate(AIVehicle.GetProfitLastYear);
 
@@ -126,13 +126,17 @@ function Helper::SellRoute(i) {
         AIAirport.RemoveAirport(this.route_1.GetValue(i));
 	    AIAirport.RemoveAirport(this.route_2.GetValue(i));
     } else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) {
-		Info(AIBaseStation.GetName(i))
-		local station_name = AIBaseStation.GetName(i)
+		local station_name = AIBaseStation.GetName(AIStation.GetStationID(this.route_1.GetValue(i)))
+
+		Info("input " + i + " route value " + this.route_1.GetValue(i))
+		Info("station name " + station_name + " station ID " + AIStation.GetStationID(this.route_1.GetValue(i)))
+		OutputList(this.route_1)
+
 		station_name = split(station_name.tostring(), " ")
 		if (station_name.len()==3 && AIRoad.IsRoadDepotTile(station_name[2].tointeger())) {
-			Warning(AIBaseStation.GetName(i) + " " + station_name.len())
 			AIRoad.RemoveRoadDepot(station_name[2].tointeger());
 		}
+		
 		Info(this.route_1.GetValue(i))
         AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
 	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
@@ -196,9 +200,12 @@ function Helper::DebugSign(tile, message) {
 }
 
 function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
+	local costs = AIAccounting();
+
     this.pathfinder.InitializePath([tile_1], [tile_2]);
     local depot_tile = -1;
-    
+	local ret = [];
+
 	// Try to find a path.
 	local path = false;
 	while (path == false) {
@@ -212,45 +219,31 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
         return -1;
 	}
 
+	costs.ResetCosts();
     /// If a path was found, build a road over it.
 	while (path != null) {
 		local par = path.GetParent();
 		if (par != null) {
 			local last_node = path.GetTile();
 			if (AIMap.DistanceManhattan(path.GetTile(), par.GetTile()) == 1 ) {
-				if (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
-					// An error occured while building a piece of road. TODO: handle it
-					// Note that is can also be the case that the road was already build
-                    if (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT) {}
-                    else {
-						local errors = 0
-                        while (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) {
-                            Mungo.Sleep(10);
-                            Error("Error building road " + AIError.GetLastErrorString());
-
-							if (++errors>10) {
-								return -1;
+				if (!AIRoad.BuildRoad(path.GetTile(), par.GetTile())) { 
+					if (depot_tile<0) {
+						depot_tile = this.BuildDepotForRoute(path.GetTile())
+						if (depot_tile>0) {
+							local built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+							local errors = 0
+							while (!built) {
+								Error("Error building new depot " + AIError.GetLastErrorString());
+								Mungo.Sleep(1);
+								built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
+								errors++
+								if (errors>10) {
+									return -1;
+								}
 							}
-						}	
-						
-                    }
-				} 
-				if (depot_tile<0) {
-					depot_tile = this.BuildDepotForRoute(path.GetTile())
-					if (depot_tile>0) {
-						local built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
-						local errors = 0
-						while (!built) {
-							Error("Error building new depot " + AIError.GetLastErrorString());
-							Mungo.Sleep(1);
-							built = AIRoad.BuildRoadDepot(depot_tile, path.GetTile());
-							errors++
-							if (errors>10) {
-								return -1;
-							}
+							AIRoad.BuildRoad(depot_tile, path.GetTile())
+							// this.DebugSign(depot_tile, "New Depot")
 						}
-						AIRoad.BuildRoad(depot_tile, path.GetTile())
-						this.DebugSign(depot_tile, "New Depot")
 					}
 				}
 			} else {
@@ -275,7 +268,10 @@ function Helper::RoadPathCreator(tile_1, tile_2, depot_tile=-1,) {
 		}
 		path = par;
 	}
-    return depot_tile;
+
+	ret.append(depot_tile);
+	ret.append(costs.GetCosts());
+    return ret;
 }
 
 function Helper::BuildDepotForRoute(tile) {
@@ -325,5 +321,80 @@ function Helper::RemoveNullStations() {
 				continue;
 		};
 	}
+	return counter;
+}
+
+// TODO upgrade airports
+// TODO upgrade current planes in service if they've earnt enough money
+function Helper::ManageRoutes() {
+	local counter = 0
+
+	// Upgrade routes for all cargo routes we currently service
+	for (local i = this.cargo_list[0]; i < cargo_list.len() ; i++) {
+		local list = AIStationList(this.STATIONTYPE);
+		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
+		list.KeepAboveValue(250);
+
+		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next()) {
+			// Don't try to add planes when we are short on cash
+			if (!this.CanAffordCheapestEngine(this.cargo_list[i])) return counter;
+
+			local list2 = AIVehicleList_Station(station_id);
+			// // No vehicles going to this station, abort and sell
+			// if (list2.Count() == 0) {
+			// 	this.SellRoute(station_id);
+			// 	continue;
+			// };
+
+			// Do not build a new vehicle if we bought a new one in the last DISTANCE days
+			local v = list2.Begin();
+			list2.Valuate(AIVehicle.GetAge);
+			list2.KeepBelowValue(365);
+			if (list2.Count() != 0) continue;
+
+			// Info("Upgrading " + station_id + " (" + AIStation.GetLocation(station_id) + ") for passengers");
+			local engine = AIVehicle.GetEngineType(v);
+			if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine"); return false}
+
+			// Make sure we have enough money
+			if (!HasMoney(AIEngine.GetPrice(engine))) {return counter}
+			GetMoney(AIEngine.GetPrice(engine));
+
+			local new_vehicle;
+
+			if (this.VEHICLETYPE == AIVehicle.VT_AIR) {
+				local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
+				// local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v)))
+
+				new_vehicle = AIVehicle.CloneVehicle(AIAirport.GetHangarOfAirport(AIStation.GetLocation(station_id)), v, true);
+				while (!AIVehicle.IsValidVehicle(new_vehicle)) {
+					Mungo.Sleep(1);
+					Error("Error cloning vehicle");
+					Error(AIError.GetLastErrorString());
+					new_vehicle = AIVehicle.CloneVehicle(AIAirport.GetHangarOfAirport(AIStation.GetLocation(station_id)), v, true);
+				}
+			} else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) {
+				local station_name = AIBaseStation.GetName(station_id)
+				station_name = split(station_name.tostring(), " ")
+
+				new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
+				while (!AIVehicle.IsValidVehicle(new_vehicle)) {
+					Mungo.Sleep(1);
+					Error("Error cloning vehicle");
+					Error(AIError.GetLastErrorString());
+					new_vehicle = AIVehicle.CloneVehicle(station_name[2].tointeger(), v, true);
+				}
+			}
+			
+			// Finalise the cloning
+			this.route_1.AddItem(new_vehicle, this.route_1.GetValue(v))
+			this.route_2.AddItem(new_vehicle, this.route_2.GetValue(v))
+
+			// Comment out to check selling vehicles
+			AIVehicle.StartStopVehicle(new_vehicle)
+			counter++
+		}
+	}
+
 	return counter;
 }

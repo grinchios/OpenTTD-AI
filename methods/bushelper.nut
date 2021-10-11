@@ -54,6 +54,7 @@ function BusHelper::CreateNewRoute() {
 	{
 		local test = AITestMode();
 		roadList = RoadPathCreator(tile_1, tile_2);
+		if (roadList.len()!=2) return false;
 		pathCost = roadList[1] + AIRoad.GetBuildCost(AIRoad.ROADTYPE_ROAD, AIRoad.BT_BUS_STOP)*2
 		GetMoney(pathCost)
 	}
@@ -138,11 +139,11 @@ function BusHelper::SelectBestEngine(cargo, distance, maximum_cost=INFINITY) {
 }
 
 function BusHelper::BuildAllAngles(tile, station_type=AIStation.STATION_NEW) {
-	this.DebugSign(tile+AIMap.GetTileIndex(0, 1), "tile:"+(tile+AIMap.GetTileIndex(0, 1)))
+	// this.DebugSign(tile+AIMap.GetTileIndex(0, 1), "tile:"+(tile+AIMap.GetTileIndex(0, 1)))
 	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(0, 1), AIRoad.ROADVEHTYPE_BUS, station_type)) {
 		return true;
 	} 
-	this.DebugSign(tile+AIMap.GetTileIndex(1, 0), "tile:"+(tile+AIMap.GetTileIndex(1, 0)))
+	// this.DebugSign(tile+AIMap.GetTileIndex(1, 0), "tile:"+(tile+AIMap.GetTileIndex(1, 0)))
 	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(1, 0), AIRoad.ROADVEHTYPE_BUS, station_type)) {
 		return true;
 	} 

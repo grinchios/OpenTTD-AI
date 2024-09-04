@@ -43,7 +43,7 @@ function BusHelper::CreateNewRoute() {
 
 	// this.DebugSign(tile_1, "bus stop 1");
 	// this.DebugSign(tile_2, "bus stop 2");
-	
+
 	// Get enough money to work with
 	local costs = AIAccounting();
 	local pathCost = 0;
@@ -82,7 +82,7 @@ function BusHelper::CreateNewRoute() {
 		Athis.CleanUp(tile_1, tile_2, 1)
 		return false;
 	}
-	
+
 	// GetMoney(costs.GetCosts())
 	roadList = RoadPathCreator(tile_1, tile_2);
 
@@ -98,7 +98,7 @@ function BusHelper::CreateNewRoute() {
 	} else {
 		local location = AIStation.GetStationID(tile_1);
 		this.SetDepotName(location, 0, roadList[0]);
-		
+
 		location = AIStation.GetStationID(tile_2);
 		this.SetDepotName(location, 0, roadList[0]);
 		Info("Done building a route");
@@ -111,14 +111,14 @@ function BusHelper::SelectBestEngine(cargo, distance, maximum_cost=INFINITY) {
 	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
 
 	local engine_list = AIEngineList(this.VEHICLETYPE)
-	
-	 
+
+
 	engine_list.Valuate(AIEngine.GetRoadType);
 	engine_list.KeepValue(AIRoad.ROADTYPE_ROAD);
 
 	engine_list.Valuate(AIEngine.GetPrice);
 	engine_list.KeepBelowValue(CurrentFunds()/2);
-	
+
 	engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
 	engine_list.KeepValue(1);
 
@@ -142,11 +142,11 @@ function BusHelper::BuildAllAngles(tile, station_type=AIStation.STATION_NEW) {
 	// this.DebugSign(tile+AIMap.GetTileIndex(0, 1), "tile:"+(tile+AIMap.GetTileIndex(0, 1)))
 	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(0, 1), AIRoad.ROADVEHTYPE_BUS, station_type)) {
 		return true;
-	} 
+	}
 	// this.DebugSign(tile+AIMap.GetTileIndex(1, 0), "tile:"+(tile+AIMap.GetTileIndex(1, 0)))
 	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(1, 0), AIRoad.ROADVEHTYPE_BUS, station_type)) {
 		return true;
-	} 
+	}
 	return false;
 }
 
@@ -182,7 +182,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 		local span = AIMap.DistanceFromEdge(tile) <= 15 ? AIMap.DistanceFromEdge(tile) - 1 : 15;
 		list.AddRectangle(tile - AIMap.GetTileIndex(span, span), tile + AIMap.GetTileIndex(span, span));
 
-		// Sort on acceptance, remove places that don't have acceptance 
+		// Sort on acceptance, remove places that don't have acceptance
 		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
 		list.RemoveBelowValue(9);
 
@@ -199,7 +199,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 		}
 
 		// Couldn't find a suitable place for this town, skip to the next
-		if (list.Count() == 0) continue; 
+		if (list.Count() == 0) continue;
 		// Walk all the tiles and see if we can build the route at all
 		{
       		local test = AITestMode();
@@ -211,7 +211,7 @@ function BusHelper::FindSuitableLocation(cargo, center_tile=0, max_distance=INFI
 				if (!this.BuildAllAngles(tile)) {
 					continue;
 				}
-				
+
 				good_tile = tile;
 				break;
 			}
@@ -244,10 +244,10 @@ function BusHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot){
 		return false;
 	}
 
-	// Get the shmoneys
+	// Get some money
 	if (!HasMoney(AIEngine.GetPrice(engine))) {return -1}
 	GetMoney(AIEngine.GetPrice(engine));
-	
+
 	local vehicle = AIVehicle.BuildVehicleWithRefit(depot, engine, cargo);
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
 		Mungo.Sleep(1);

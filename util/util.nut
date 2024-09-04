@@ -8,28 +8,8 @@ function NameCompany() {
 			i++;
 		}
 	}
-    
-    // Say hello to the user
 	Info("Welcome to " + AICompany.GetName(AICompany.COMPANY_SELF));
-	Info("Minimum Town Size: " + GetSetting("min_town_size"));
-}
-
-function split(message, split_on) {
-	local buf = "";
-	local split_message = [];
-
-	for (local i=0; i<message.len(); i++) {
-		if (message[i].tochar() != split_on) {
-			buf = buf + "" + message[i].tochar();
-		} else {
-			split_message.append(buf);
-			buf = "";
-		}
-	}
-	
-	split_message.append(buf);
-
-	return split_message
+	LogAllSettings();  // Logs the name and value of every setting
 }
 
 function TownsUsedForStationType(station_Type) {

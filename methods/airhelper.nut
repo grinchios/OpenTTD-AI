@@ -68,7 +68,7 @@ function AirHelper::CreateNewRoute() {
 		this.towns_used.RemoveValue(tile_1);
 		return false;
 	}
-	
+
 	// Get enough money to work with
 	if (!HasMoney(this.NewRouteCost(airport_type))) {return false;}
 	GetMoney(this.NewRouteCost(airport_type));
@@ -92,7 +92,7 @@ function AirHelper::CreateNewRoute() {
 	}
 
 	local engine = this.SelectBestAircraft(airport_type, this.cargo_list[0], AITile.GetDistanceManhattanToTile(tile_1, tile_2))
-	
+
 	if (!AIEngine.IsValidEngine(engine)) {Error("Error selecting new engine");return false}
 
 	this.DebugSign(tile_1, "Distance:"+AITile.GetDistanceManhattanToTile(tile_1, tile_2));
@@ -156,7 +156,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		list.Valuate(AITile.IsBuildableRectangle, airport_x, airport_y);
 		list.KeepValue(1);
 
-		// Sort on acceptance, remove places that don't have acceptance 
+		// Sort on acceptance, remove places that don't have acceptance
 		list.Valuate(AITile.GetCargoAcceptance, this.cargo_list[0], airport_x, airport_y, airport_rad);
 		list.RemoveBelowValue(50);
 
@@ -168,7 +168,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 		}
 
 		// Couldn't find a suitable place for this town, skip to the next
-		if (list.Count() == 0) continue; 
+		if (list.Count() == 0) continue;
 
 		// Walk all the tiles and see if we can build the airport at all
 		{
@@ -181,7 +181,7 @@ function AirHelper::FindSuitableLocation(airport_type, center_tile=0, max_distan
 					this.DebugSign(tile, "tile:"+tile)
 					continue;
 				}
-				
+
 				good_tile = tile;
 				break;
 			}
@@ -210,10 +210,10 @@ function AirHelper::BuildNewVehicle(engine, tile_1, tile_2, cargo){
 	// Build an aircraft
 	local hangar = AIAirport.GetHangarOfAirport(tile_1);
 
-	// Get the shmoneys
+	// Get some money
 	if (!HasMoney(AIEngine.GetPrice(engine))) {return -1}
 	GetMoney(AIEngine.GetPrice(engine));
-	
+
 	local vehicle = AIVehicle.BuildVehicleWithRefit(hangar, engine, cargo);
 	while (!AIVehicle.IsValidVehicle(vehicle)) {
 		Mungo.Sleep(1);

@@ -22,7 +22,6 @@ function Mungo::Init()
 	NameCompany();
 
 	// Setup Helpers
-	// this.helpers.append(AirHelper());
 	this.helpers.append(BusHelper());
 
 	// Auto-renew
@@ -36,34 +35,38 @@ function Mungo::Init()
 
 function Mungo::NewRoutes()
 {
-	// Initial moneymaker is passenger air transport
+	/*
+	* TODO: New function in each helper to get estimated profit of a new route compared to the cost of building it
+	* this will create a profitabilty score for each route and then we can select the best one
+	*/
 	for (local i = 0; i < this.helpers.len(); i++)
 	{
-		if (this.helpers[i].CreateNewRoute()) { return true; }
+		if (this.helpers[i].CreateNewRoute()) { return true }
 	}
 
 	if (this.ticker == 0)
 	{
+		// TODO: improve this to be more fault tolerant
 		/* The AI failed to build a first route and is deemed a failure */
 		AICompany.SetName("Failed " + AICompany.GetName(AICompany.COMPANY_SELF));
 		Error("Failed to build first route, now giving up building. Repaying loan. Have a nice day!");
 		AICompany.SetLoanAmount(0);
 		return false;
 	}
-	else { return true; }
+	else { return true }
 }
 
 function Mungo::HouseKeeping()
 {
-    Mungo.HandleEvents();
+    this.HandleEvents();
     RepayLoan();
 	StatuesInTowns();
 }
 
 function Mungo::ManageRoutes()
 {
-	local counter_upgraded = 0
-	local counter_sold = 0
+	local counter_upgraded = 0;
+	local counter_sold = 0;
 	for (local i = 0; i < this.helpers.len(); i++)
 	{
 		this.helpers[i].SellNegativeVehicles();
@@ -76,22 +79,18 @@ function Mungo::ManageRoutes()
 
 function Mungo::Start()
 {
-	if (!this.Init()) { return; }
+	if (!this.Init()) { return }
 
 	// Let's go on for ever
 	for(local i = 0; true; i++)
 	{
 		Warning("Starting iteration: " + i)
 
-		// if ((this.ticker % this.delay_build_airport_route == 0) && HasMoney(this.helpers[0].NewRouteCost(GetBestAirport()))) {
-			if (!this.NewRoutes())
-			{
-				// while (1==1) {
-					Error(AIError.GetLastErrorString());
-				// }
-				return;
-			}
-		// }
+		if (!this.NewRoutes())
+		{
+			Error(AIError.GetLastErrorString());
+			return;
+		}
 
 		this.HouseKeeping();
 		this.ManageRoutes();
@@ -120,6 +119,7 @@ function Mungo::Load(version, data)
 	if (data.rawin("ticker")) { this.ticker = data.rawget("ticker"); }
 }
 
+// TODO: Move this to a new file specifically for event handling
 function Mungo::HandleEvents()
 {
     while (AIEventController.IsEventWaiting())
@@ -168,10 +168,11 @@ function Mungo::HandleEvents()
 				}
 				else if (crash_reason == AIEventVehicleCrashed.CRASH_RV_LEVEL_CROSSING)
 				{
-					Info("Creating new level crossing");
+					Info("Avoiding new level crossing");
+					// TODO: Avoid new level crossing
 					break;
 				}
-				else { Info("Replacing vehicle"); }
+				else { Info("Replacing vehicle") }
 			} break;
 
 			default:

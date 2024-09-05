@@ -1,10 +1,13 @@
 // TODO company owner picture
 // TODO build HQ somewhere nice
-function NameCompany() {
+function NameCompany()
+{
     // Give the boy a name
-	if (!AICompany.SetName("Mungo")) {
+	if (!AICompany.SetName("Mungo"))
+	{
 		local i = 2;
-		while (!AICompany.SetName("Mungo #" + i)) {
+		while (!AICompany.SetName("Mungo #" + i))
+		{
 			i++;
 		}
 	}
@@ -12,7 +15,8 @@ function NameCompany() {
 	LogAllSettings();  // Logs the name and value of every setting
 }
 
-function TownsUsedForStationType(station_Type) {
+function TownsUsedForStationType(station_Type)
+{
 	local list = AIStationList(station_Type);
 	local all_towns = AITownList();
 	local tmp_towns = all_towns
@@ -21,7 +25,8 @@ function TownsUsedForStationType(station_Type) {
 	list.Valuate(AIBaseStation.GetLocation)
 
 	// Go through all stations we own and keep the towns the station is within
-	for (local i = list.Begin(); list.HasNext(); i = list.Next()) {
+	for (local i = list.Begin(); list.HasNext(); i = list.Next())
+	{
 		tmp_towns.Valuate(AITown.IsWithinTownInfluence, i)
 		tmp_towns.KeepValue(1);
 		towns_used.AddItem(tmp_towns.Begin(), 1);
@@ -31,7 +36,8 @@ function TownsUsedForStationType(station_Type) {
 	return towns_used;
 }
 
-function GetCargoID(cargo) {
+function GetCargoID(cargo)
+{
 	// Get the id of cargo
     local list = AICargoList();
 	list.Valuate(AICargo.HasCargoClass, cargo)
@@ -39,7 +45,9 @@ function GetCargoID(cargo) {
 	return list.Begin();
 }
 
-function StatuesInTowns() {
+// TODO: This should look at all in use cargo types and choose the one with the highest production
+function StatuesInTowns()
+{
 	local towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);
 
 	// Get 5 towns that would benefit from having a statue made
@@ -50,18 +58,24 @@ function StatuesInTowns() {
 	towns_used.Valuate(AITown.GetLastMonthProduction, GetCargoID(AICargo.CC_PASSENGERS));
 	towns_used.KeepTop(5);
 
-	for (local i = towns_used.Begin(); towns_used.HasNext(); i = towns_used.Next()) {
-		if (!HasMoney(250000)) {return;}
-		if (!AITown.PerformTownAction(i, AITown.TOWN_ACTION_BUILD_STATUE)) {
+	for (local i = towns_used.Begin(); towns_used.HasNext(); i = towns_used.Next())
+	{
+		if (!HasMoney(250000)) { return }
+		if (!AITown.PerformTownAction(i, AITown.TOWN_ACTION_BUILD_STATUE))
+		{
 			Error("Statue building failed");
-		} else {
+		}
+		else
+		{
 			Info("Built a super amazing statue in town: " + i);
 		}
 	}
 }
 
 // TODO include population into the decision
-function GetBestAirport() {
+// TODO this should be within the AirHelper class
+function GetBestAirport()
+{
 	if (AIAirport.GetPrice(AIAirport.AT_METROPOLITAN) < CurrentFunds() && AIAirport.IsValidAirportType(AIAirport.AT_METROPOLITAN)) {return AIAirport.AT_METROPOLITAN}
 	if (AIAirport.GetPrice(AIAirport.AT_LARGE) < CurrentFunds() && AIAirport.IsValidAirportType(AIAirport.AT_LARGE)) {return AIAirport.AT_LARGE}
 	if (AIAirport.GetPrice(AIAirport.AT_COMMUTER) < CurrentFunds() && AIAirport.IsValidAirportType(AIAirport.AT_COMMUTER)) {return AIAirport.AT_COMMUTER}

@@ -1,4 +1,5 @@
-function GetDate() {
+function GetDate()
+{
     /*
     * Get the current date in the format [dd/mm/yy]
     */
@@ -13,46 +14,56 @@ function GetDate() {
     return "[" + day +"/" + month + "/" + year + "]";
 }
 
-function Info(message) {
+function Info(message)
+{
     /*
     * Log an info message to the console
     */
     AILog.Info("[+] " + GetDate() + " - " + message);
 }
 
-function Warning(message) {
+function Warning(message)
+{
     /*
     * Log a warning message to the console
     */
     AILog.Warning("[-] " + GetDate() + " - " + message);
 }
 
-function Error(message) {
+function Error(message)
+{
     /*
     * Log an error message to the console
     */
     AILog.Error("[*] " + GetDate() + " - " + message);
 }
 
-function OutputList(list) {
+function OutputList(list)
+{
     /*
     * Output the contents of a list to the console
     */
-    for (local element = list.Begin(); list.HasNext(); element = list.Next()) {
+    for (local element = list.Begin(); list.HasNext(); element = list.Next())
+    {
         Info("Key:" + element + " Value:" + list.GetValue(element));
     }
 }
 
-function split(message, split_on) {
+function split(message, split_on)
+{
     /*
     * Split a message into a list based on a character, like the Python split method
     */
 	local buf = "";
 	local split_message = [];
-	for (local i=0; i<message.len(); i++) {
-		if (message[i].tochar() != split_on) {
+	for (local i=0; i<message.len(); i++)
+    {
+		if (message[i].tochar() != split_on)
+        {
 			buf = buf + "" + message[i].tochar();
-		} else {
+		}
+        else
+        {
 			split_message.append(buf);
 			buf = "";
 		}

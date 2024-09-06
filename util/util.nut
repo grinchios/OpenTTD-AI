@@ -73,7 +73,7 @@ function StatuesInTowns()
 }
 
 // TODO include population into the decision
-// TODO this should be within the AirHelper class
+// TODO this should be within the AirManager class
 function GetBestAirport()
 {
 	if (AIAirport.GetPrice(AIAirport.AT_METROPOLITAN) < CurrentFunds() && AIAirport.IsValidAirportType(AIAirport.AT_METROPOLITAN)) {return AIAirport.AT_METROPOLITAN}

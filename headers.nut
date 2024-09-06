@@ -12,11 +12,11 @@ import("pathfinder.road", "RoadPathFinder", 4);
 
 
 // Interal Imports
-require("methods/helper.nut"); // Needs to be at the top of Internal Imports
+require("methods/manager.nut"); // Needs to be at the top of Internal Imports
 require("util/settings.nut");
 require("util/util.nut");
 require("util/debug.nut");
 require("util/enums.nut");
 require("util/finance.nut"); // Who doesn't require money lets be honest
-require("methods/airhelper.nut");
-require("methods/bushelper.nut");
+require("methods/air_manager.nut");
+require("methods/pax_manager.nut");

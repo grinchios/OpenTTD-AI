@@ -9,7 +9,7 @@ class Mungo extends AIController
 	delay_build_airport_route = 1000;
 	ticker = null;
 
-	helpers = []
+	managers = []
 
 	constructor() {
 		this.sleepingtime = 500;  // Time to sleep between iterations
@@ -21,14 +21,14 @@ function Mungo::Init()
 {
 	NameCompany();
 
-	// Setup Helpers
-	this.helpers.append(BusHelper());
+	// Setup Managers
+	this.managers.append(BusManager());
 
 	// Auto-renew
 	HandleAutoRenew();
 
 	// Auto replace
-	// this.helpers[0].UpgradeVehicles();
+	// this.managers[0].UpgradeVehicles();
 
 	return true;
 }
@@ -36,12 +36,12 @@ function Mungo::Init()
 function Mungo::NewRoutes()
 {
 	/*
-	* TODO: New function in each helper to get estimated profit of a new route compared to the cost of building it
+	* TODO: New function in each manager to get estimated profit of a new route compared to the cost of building it
 	* this will create a profitabilty score for each route and then we can select the best one
 	*/
-	for (local i = 0; i < this.helpers.len(); i++)
+	for (local i = 0; i < this.managers.len(); i++)
 	{
-		if (this.helpers[i].CreateNewRoute()) { return true }
+		if (this.managers[i].CreateNewRoute()) { return true }
 	}
 
 	if (this.ticker == 0)
@@ -67,11 +67,11 @@ function Mungo::ManageRoutes()
 {
 	local counter_upgraded = 0;
 	local counter_sold = 0;
-	for (local i = 0; i < this.helpers.len(); i++)
+	for (local i = 0; i < this.managers.len(); i++)
 	{
-		this.helpers[i].SellNegativeVehicles();
-		counter_upgraded += this.helpers[i].ManageRoutes();
-		counter_sold += this.helpers[i].RemoveNullStations();
+		this.managers[i].SellNegativeVehicles();
+		counter_upgraded += this.managers[i].ManageRoutes();
+		counter_sold += this.managers[i].RemoveNullStations();
 	}
 	if (counter_upgraded > 0) { Warning("Upgraded " + counter_upgraded + " routes"); }
 	if (counter_sold > 0) { Warning("Sold " + counter_sold + " routes") };
@@ -137,14 +137,14 @@ function Mungo::HandleEvents()
 				if (crash_reason == AIEventVehicleCrashed.CRASH_AIRCRAFT_NO_AIRPORT)
 				{
 					Info("Replacing crashed plane");
-					for (local i = 0; i < this.helpers[HelperTypes.PLANE_PAX].vehicle_array.len(); i++)
+					for (local i = 0; i < this.managers[ManagerTypes.PLANE_PAX].vehicle_array.len(); i++)
 					{
-						if (this.helpers[HelperTypes.PLANE_PAX].vehicle_array == v)
+						if (this.managers[ManagerTypes.PLANE_PAX].vehicle_array == v)
 						{
-							this.helpers[HelperTypes.PLANE_PAX].vehicle_array.remove(i);
-							this.helpers[HelperTypes.PLANE_PAX].BuildAircraft(
-								this.helpers[HelperTypes.PLANE_PAX].route_1.GetValue(v),
-								this.helpers[HelperTypes.PLANE_PAX].route_2.GetValue(v)
+							this.managers[ManagerTypes.PLANE_PAX].vehicle_array.remove(i);
+							this.managers[ManagerTypes.PLANE_PAX].BuildAircraft(
+								this.managers[ManagerTypes.PLANE_PAX].route_1.GetValue(v),
+								this.managers[ManagerTypes.PLANE_PAX].route_2.GetValue(v)
 							);
 							break;
 						}
@@ -153,14 +153,14 @@ function Mungo::HandleEvents()
 				else if (crash_reason == AIEventVehicleCrashed.CRASH_PLANE_LANDING)
 				{
 					Info("Replacing crashed plane");
-					for (local i = 0; i < this.helpers[HelperTypes.PLANE_PAX].vehicle_array.len(); i++)
+					for (local i = 0; i < this.managers[ManagerTypes.PLANE_PAX].vehicle_array.len(); i++)
 					{
-						if (this.helpers[HelperTypes.PLANE_PAX].vehicle_array == v)
+						if (this.managers[ManagerTypes.PLANE_PAX].vehicle_array == v)
 						{
-							this.helpers[HelperTypes.PLANE_PAX].vehicle_array.remove(i);
-							this.helpers[HelperTypes.PLANE_PAX].BuildAircraft(
-								this.helpers[HelperTypes.PLANE_PAX].route_1.GetValue(v),
-								this.helpers[HelperTypes.PLANE_PAX].route_2.GetValue(v)
+							this.managers[ManagerTypes.PLANE_PAX].vehicle_array.remove(i);
+							this.managers[ManagerTypes.PLANE_PAX].BuildAircraft(
+								this.managers[ManagerTypes.PLANE_PAX].route_1.GetValue(v),
+								this.managers[ManagerTypes.PLANE_PAX].route_2.GetValue(v)
 							);
 							break;
 						}

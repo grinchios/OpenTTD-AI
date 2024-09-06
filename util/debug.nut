@@ -19,7 +19,7 @@ function Info(message)
     /*
     * Log an info message to the console
     */
-    AILog.Info("[+] " + GetDate() + " - " + message);
+    AILog.Info(GetDate() + " - " + message);
 }
 
 function Warning(message)
@@ -27,7 +27,7 @@ function Warning(message)
     /*
     * Log a warning message to the console
     */
-    AILog.Warning("[-] " + GetDate() + " - " + message);
+    AILog.Warning(GetDate() + " - " + message);
 }
 
 function Error(message)
@@ -35,7 +35,7 @@ function Error(message)
     /*
     * Log an error message to the console
     */
-    AILog.Error("[*] " + GetDate() + " - " + message);
+    AILog.Error(GetDate() + " - " + message);
 }
 
 function OutputList(list)

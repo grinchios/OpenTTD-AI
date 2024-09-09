@@ -1,6 +1,7 @@
 // Constant Variables
 const RESERVE_MONEY = 50000;
 const INFINITY = 1000000000000;
+const ERROR_LIMIT = 10;
 
 // External Imports
 import("pathfinder.road", "RoadPathFinder", 4);

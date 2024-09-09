@@ -3,16 +3,15 @@ require("headers.nut");
 class Mungo extends AIController
 {
 	name = null;
-	sleepingtime = null
-	vehicle_to_depot = {};
-	vehicle_to_upgrade = {};
-	delay_build_airport_route = 1000;
+	sleepingTime = null
+	vehicleToSell = {};
+	vehicleToUpgrade = {};
 	ticker = null;
 
 	managers = []
 
 	constructor() {
-		this.sleepingtime = 500;  // Time to sleep between iterations
+		this.sleepingTime = 500;  // Time to sleep between iterations
 		this.ticker = 0;  // We need our local ticker, as GetTick() will skip ticks
   	}
 }
@@ -20,17 +19,9 @@ class Mungo extends AIController
 function Mungo::Init()
 {
 	NameCompany();
-
-	// Setup Managers
-	this.managers.append(BusManager());
-
-	// Auto-renew
 	HandleAutoRenew();
-
-	// Auto replace
-	// this.managers[0].UpgradeVehicles();
-
-	return true;
+	this.managers.append(RoadManager());  // Setup Managers
+	// this.managers[0].UpgradeVehicles();  // Auto replace
 }
 
 function Mungo::NewRoutes()
@@ -58,34 +49,38 @@ function Mungo::NewRoutes()
 
 function Mungo::HouseKeeping()
 {
+	/*
+	* This function contains fast housekeeping tasks that need to be done every iteration
+	*/
     this.HandleEvents();
-    RepayLoan();
-	StatuesInTowns();
+    // RepayLoan();
+	// StatuesInTowns();
 }
 
 function Mungo::ManageRoutes()
 {
-	local counter_upgraded = 0;
-	local counter_sold = 0;
+	local counterUpgraded = 0;
+	local counterSold = 0;
 	for (local i = 0; i < this.managers.len(); i++)
 	{
 		this.managers[i].SellNegativeVehicles();
-		counter_upgraded += this.managers[i].ManageRoutes();
-		counter_sold += this.managers[i].RemoveNullStations();
+		counterUpgraded += this.managers[i].ManageRoutes();
+		counterSold += this.managers[i].RemoveNullStations();
 	}
-	if (counter_upgraded > 0) { Warning("Upgraded " + counter_upgraded + " routes"); }
-	if (counter_sold > 0) { Warning("Sold " + counter_sold + " routes") };
+	if (counterUpgraded > 0) { Warning("Upgraded " + counterUpgraded + " routes"); }
+	if (counterSold > 0) { Warning("Sold " + counterSold + " routes") };
 }
 
 function Mungo::Start()
 {
-	if (!this.Init()) { return }
+	this.Init();
 
 	// Let's go on for ever
 	for(local i = 0; true; i++)
 	{
 		Warning("Starting iteration: " + i)
 
+		// TODO: try and except this to catch errors
 		if (!this.NewRoutes())
 		{
 			Error(AIError.GetLastErrorString());
@@ -96,8 +91,8 @@ function Mungo::Start()
 		this.ManageRoutes();
 
 		// Make sure we do not create infinite loops
-		Sleep(this.sleepingtime);
-		this.ticker += this.sleepingtime;
+		Sleep(this.sleepingTime);
+		this.ticker += this.sleepingTime;
 	}
 }
 
@@ -105,8 +100,8 @@ function Mungo::Save()
 {
 	// dictionary of data to save in the savefile
 	local table = {
-		vehicle_to_depot = this.vehicle_to_depot,
-		vehicle_to_upgrade = this.vehicle_to_upgrade,
+		vehicleToSell = this.vehicleToSell,
+		vehicleToUpgrade = this.vehicleToUpgrade,
 		ticker = this.ticker
 	};
 	return table;
@@ -114,8 +109,8 @@ function Mungo::Save()
 
 function Mungo::Load(version, data)
 {
-	if (data.rawin("vehicle_to_depot")) { this.vehicle_to_depot = data.rawget("vehicle_to_depot"); }
-	if (data.rawin("vehicle_to_upgrade")) { this.vehicle_to_upgrade = data.rawget("vehicle_to_upgrade"); }
+	if (data.rawin("vehicleToSell")) { this.vehicleToSell = data.rawget("vehicleToSell"); }
+	if (data.rawin("vehicleToUpgrade")) { this.vehicleToUpgrade = data.rawget("vehicleToUpgrade"); }
 	if (data.rawin("ticker")) { this.ticker = data.rawget("ticker"); }
 }
 

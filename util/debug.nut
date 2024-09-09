@@ -71,3 +71,23 @@ function split(message, split_on)
 	split_message.append(buf);
 	return split_message
 }
+
+function place_sign(tile,  message)
+{
+    /*
+    * Place a sign on a tile
+    */
+   if (this.DEBUG)
+   {
+       {
+           local mode = AIExecMode();
+           local debug_sign = AISign.BuildSign(tile, message);
+           while (!AISign.IsValidSign(debug_sign) && AIMap.IsValidTile(tile))
+           {
+               Mungo.Sleep(1);
+               debug_sign = AISign.BuildSign(tile, message);
+               Error(AIError.GetLastErrorString() + " " + tile);
+           }
+       }
+   }
+}

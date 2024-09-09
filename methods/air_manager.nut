@@ -5,9 +5,9 @@
 // 	DEBUG = false;
 
 // 	constructor() {
-// 		this.VEHICLETYPE = AIVehicle.VT_AIR;
-// 		this.STATIONTYPE = AIStation.STATION_AIRPORT;
-// 		this.towns_used = TownsUsedForStationType(this.STATIONTYPE);
+// 		this.VEHICLE_TYPE = AIVehicle.VT_AIR;
+// 		this.STATION_TYPE = AIStation.STATION_AIRPORT;
+// 		this.towns_used = TownsUsedForStationType(this.STATION_TYPE);
 
 // 		this.Init();
 // 	}
@@ -18,7 +18,7 @@
 // {
 // 	if (!this.CanAffordCheapestEngine(cargo)) { return -1 }
 
-// 	local engine_list = AIEngineList(this.VEHICLETYPE)
+// 	local engine_list = AIEngineList(this.VEHICLE_TYPE)
 
 // 	// Remove big planes if we use a smaller airport type
 // 	if (airport_type==AIAirport.AT_SMALL || airport_type==AIAirport.AT_COMMUTER )

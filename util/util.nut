@@ -46,6 +46,7 @@ function GetCargoID(cargo)
 }
 
 // TODO: This should look at all in use cargo types and choose the one with the highest production
+// TODO: Remove magic number and check if we have enough money properly
 function StatuesInTowns()
 {
 	local towns_used = TownsUsedForStationType(AIStation.STATION_AIRPORT);

@@ -3,11 +3,11 @@
 // TODO new route class with estimated cost, test build and other useful things
 class Manager
 {
-    route_1 = null;
+    route_1 = null;  // TODO: change this to a list of pairs
 	route_2 = null;
     vehicle_array = [];
-    VEHICLETYPE = null;
-	STATIONTYPE = null;
+    VEHICLE_TYPE = null;
+	STATION_TYPE = null;
 
     cargo_list = []
 }
@@ -19,7 +19,7 @@ function Manager::Init()
     // of extra CPU cycles on setup which is fine as it's only once
     local list = AIVehicleList();
     list.Valuate(AIVehicle.GetVehicleType);
-    list.KeepValue(this.VEHICLETYPE);
+    list.KeepValue(this.VEHICLE_TYPE);
     local vehicle_name;
     this.route_1 = AIList();
     this.route_2 = AIList();
@@ -50,23 +50,25 @@ function Manager::SetDepotName(station_id, limit, depot_tile)
 
 function Manager::SetVehicleName(vehicle_id, name)
 {
+	local errors = 0
     while (!AIVehicle.SetName(vehicle_id, name))
 	{
-		// TODO: Need to have an upper limit to avoid infinite loops
         Mungo.Sleep(1);
+		if (++errors > ERROR_LIMIT) { Error("Error setting vehicle name: " + AIError.GetLastErrorString()); return false }
     }
     return true;
 }
 
+// TODO: generalise this function for all vehicle types
 function Manager::UpgradeVehicles()
 {
-    if (this.VEHICLETYPE==AIVehicle.VT_AIR)
+    if (this.VEHICLE_TYPE==AIVehicle.VT_AIR)
 	{
         local vehicle_sizes = [AIAirport.PT_SMALL_PLANE, AIAirport.PT_BIG_PLANE]
         local airport_types = [AIAirport.AT_COMMUTER, AIAirport.AT_METROPOLITAN]
         for (local i = 0; i < vehicle_sizes.len(); i++)
 		{
-            local engine_list=AIEngineList(this.VEHICLETYPE);
+            local engine_list=AIEngineList(this.VEHICLE_TYPE);
             engine_list.Valuate(AIEngine.GetPlaneType);
             engine_list.KeepValue(vehicle_sizes[i]);
 
@@ -91,16 +93,18 @@ function Manager::UpgradeVehicles()
     }
 }
 
+// TODO: sell vehicle unless it is part of the town booster group
 function Manager::SellNegativeVehicles()
 {
     local list = AIVehicleList();
 	list.Valuate(AIVehicle.GetVehicleType);
-	list.KeepValue(this.VEHICLETYPE);
+	list.KeepValue(this.VEHICLE_TYPE);
 
+	// TODO: need inflation proof thresholds not magic numbers
 	// Set up thresholds for vehicle types
     local threshold;
-    if (this.VEHICLETYPE == AIVehicle.VT_AIR) { threshold=10000 }
-    else if (this.VEHICLETYPE == AIVehicle.VT_ROAD) { threshold=2000 }
+    if (this.VEHICLE_TYPE == AIVehicle.VT_AIR) { threshold=10000 }
+    else if (this.VEHICLE_TYPE == AIVehicle.VT_ROAD) { threshold=2000 }
 
 	// Give the vehicle at least 2 years to make a difference
 	list.Valuate(AIVehicle.GetAge);
@@ -115,16 +119,17 @@ function Manager::SellNegativeVehicles()
 		if (profit < threshold && AIVehicle.GetProfitThisYear(i) < threshold)
 		{
 			// Send the vehicle to depot if we didn't do so yet
-			if (!Mungo.vehicle_to_depot.rawin(i) || Mungo.vehicle_to_depot.rawget(i) != true)
+			if (!Mungo.vehicleToSell.rawin(i) || Mungo.vehicleToSell.rawget(i) != true)
 			{
 				Info("Sending " + i + " to depot as profit is: " + profit + " / " + AIVehicle.GetProfitThisYear(i));
 				AIVehicle.SendVehicleToDepot(i);
-				Mungo.vehicle_to_depot.rawset(i, true);
+				Mungo.vehicleToSell.rawset(i, true);
 			}
 		}
+
 		// Try to sell it over and over till it really is in the depot
 		// Is the vehicle with ID i in the depot?
-		if (Mungo.vehicle_to_depot.rawin(i) && Mungo.vehicle_to_depot.rawget(i) == true)
+		if (Mungo.vehicleToSell.rawin(i) && Mungo.vehicleToSell.rawget(i) == true)
 		{
 			if (AIVehicle.SellVehicle(i))
 			{
@@ -134,7 +139,7 @@ function Manager::SellNegativeVehicles()
                 local list2 = AIVehicleList_Station(AIStation.GetStationID(this.route_1.GetValue(i)));
                 if (list2.Count() == 0) { this.SellRoute(i) }
 
-				Mungo.vehicle_to_depot.rawdelete(i);
+				Mungo.vehicleToSell.rawdelete(i);
 			}
 		}
 	}
@@ -143,12 +148,12 @@ function Manager::SellNegativeVehicles()
 // TODO Improve this, move into the instance
 function Manager::SellRoute(i)
 {
-    if (this.VEHICLETYPE == AIVehicle.VT_AIR)
+    if (this.VEHICLE_TYPE == AIVehicle.VT_AIR)
 	{
         AIAirport.RemoveAirport(this.route_1.GetValue(i));
 	    AIAirport.RemoveAirport(this.route_2.GetValue(i));
     }
-	else if (this.VEHICLETYPE == AIVehicle.VT_ROAD)
+	else if (this.VEHICLE_TYPE == AIVehicle.VT_ROAD)
 	{
 		local station_name = AIBaseStation.GetName(AIStation.GetStationID(this.route_1.GetValue(i)))
 
@@ -166,7 +171,7 @@ function Manager::SellRoute(i)
         AIRoad.RemoveRoadStation(this.route_1.GetValue(i));
 	    AIRoad.RemoveRoadStation(this.route_2.GetValue(i));
     } else {
-		Error("Invalid vehicle type:" + this.VEHICLETYPE);
+		Error("Invalid vehicle type:" + this.VEHICLE_TYPE);
 		Error(AIError.GetLastErrorString());
 	}
     this.ClearRoute(i);
@@ -198,7 +203,7 @@ function Manager::CanAffordCheapestEngine(cargo)
 
 function Manager::CheapestEngine(cargo)
 {
-    local engine_list = AIEngineList(this.VEHICLETYPE)
+    local engine_list = AIEngineList(this.VEHICLE_TYPE)
     engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
 	engine_list.KeepValue(1);
     engine_list.Valuate(AIEngine.GetPrice)
@@ -206,6 +211,7 @@ function Manager::CheapestEngine(cargo)
     return engine_list.GetValue(engine_list.Begin());
 }
 
+// TODO: This function should be revised
 function Manager::EngineUse(engine_id)
 {
     return AIEngine.GetCapacity(engine_id) * AIEngine.GetMaxSpeed(engine_id);
@@ -213,25 +219,7 @@ function Manager::EngineUse(engine_id)
 
 function Manager::GetOrderDistance(tile_1, tile_2)
 {
-	return AIOrder.GetOrderDistance(this.VEHICLETYPE, tile_1, tile_2);
-}
-
-// FIXME: This function should be moved to the debug system
-function Manager::DebugSign(tile, message)
-{
-    if (this.DEBUG)
-	{
-        {
-            local mode = AIExecMode();
-            local debug_sign = AISign.BuildSign(tile, message);
-            while (!AISign.IsValidSign(debug_sign) && AIMap.IsValidTile(tile))
-			{
-                Mungo.Sleep(1);
-                debug_sign = AISign.BuildSign(tile, message);
-                Error(AIError.GetLastErrorString() + " " + tile);
-            }
-        }
-    }
+	return AIOrder.GetOrderDistance(this.VEHICLE_TYPE, tile_1, tile_2);
 }
 
 // FIXME: This function should be moved to a road manager child class
@@ -338,25 +326,25 @@ function Manager::BuildDepotForRoute(tile)
 
 	local test = AITestMode();
 	{
-		point_towards = tile+AIMap.GetTileIndex(0, 1);
+		point_towards = tile + AIMap.GetTileIndex(0, 1);
 		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile))
 		{
 			return point_towards;
 		}
 
-		point_towards = tile+AIMap.GetTileIndex(0, -1);
+		point_towards = tile + AIMap.GetTileIndex(0, -1);
 		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile))
 		{
 			return point_towards;
 		}
 
-		point_towards = tile+AIMap.GetTileIndex(1, 0);
+		point_towards = tile + AIMap.GetTileIndex(1, 0);
 		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile))
 		{
 			return point_towards;
 		}
 
-		point_towards = tile+AIMap.GetTileIndex(-1, 0);
+		point_towards = tile + AIMap.GetTileIndex(-1, 0);
 		if (AIRoad.BuildRoadDepot(point_towards, tile) && AIRoad.BuildRoad(point_towards, tile))
 		{
 			return point_towards;
@@ -366,10 +354,11 @@ function Manager::BuildDepotForRoute(tile)
 	return -1;
 }
 
+// TODO this can be merged into manager routes
 function Manager::RemoveNullStations()
 {
 	local counter = 0;
-	local list = AIStationList(this.STATIONTYPE);
+	local list = AIStationList(this.STATION_TYPE);
 	list.Valuate(AIBaseStation.GetLocation);
 
 	for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next())
@@ -388,6 +377,7 @@ function Manager::RemoveNullStations()
 // TODO upgrade airports, should be in the plane class under manager infrastructure
 // TODO upgrade current planes in service if they've earnt enough money
 // FIXME: This function should be generalised to work with all vehicle types
+// TODO: This function should be split into upgrade and manage routes
 function Manager::ManageRoutes()
 {
 	local counter = 0
@@ -395,13 +385,13 @@ function Manager::ManageRoutes()
 	// Upgrade routes for all cargo routes we currently service
 	for (local i = this.cargo_list[0]; i < cargo_list.len(); i++)
 	{
-		local list = AIStationList(this.STATIONTYPE);
+		local list = AIStationList(this.STATION_TYPE);
 		list.Valuate(AIStation.GetCargoWaiting, this.cargo_list[i]);
 		list.KeepAboveValue(250);
 
 		for (local station_id = list.Begin(); list.HasNext(); station_id = list.Next())
 		{
-			// Don't try to add planes when we are short on cash
+			// Don't try to add vehicles when we are short on cash
 			if (!this.CanAffordCheapestEngine(this.cargo_list[i])) return counter;
 
 			local list2 = AIVehicleList_Station(station_id);
@@ -432,7 +422,7 @@ function Manager::ManageRoutes()
 
 			local new_vehicle;
 
-			if (this.VEHICLETYPE == AIVehicle.VT_AIR)
+			if (this.VEHICLE_TYPE == AIVehicle.VT_AIR)
 			{
 				local airport_type = AIAirport.GetAirportType(this.route_1.GetValue(v))
 				// local engine = this.SelectBestAircraft(airport_type, this.cargo_list[i], AITile.GetDistanceManhattanToTile(this.route_1.GetValue(v)))
@@ -446,7 +436,7 @@ function Manager::ManageRoutes()
 					new_vehicle = AIVehicle.CloneVehicle(AIAirport.GetHangarOfAirport(AIStation.GetLocation(station_id)), v, true);
 				}
 			}
-			else if (this.VEHICLETYPE == AIVehicle.VT_ROAD)
+			else if (this.VEHICLE_TYPE == AIVehicle.VT_ROAD)
 			{
 				local station_name = AIBaseStation.GetName(station_id)
 				station_name = split(station_name.tostring(), " ")

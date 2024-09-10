@@ -1,16 +1,13 @@
-class RoadManager extends Manager
+class RoadTownBoosterManager extends Manager
 {
-	towns_used = null;
-	pathfinder = null;
-	DEBUG = true;
-
 	constructor()
 	{
 		this.VEHICLE_TYPE = AIVehicle.VT_ROAD;
 		this.STATION_TYPE = AIStation.STATION_BUS_STOP
 		this.towns_used = TownsUsedForStationType(this.STATION_TYPE);
-
-		this.pathfinder = RoadPathFinder();
+        this.cargo_list = [
+            AICargo.CC_PASSENGERS
+        ];
 
 		this.Init();
 		AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
@@ -18,12 +15,12 @@ class RoadManager extends Manager
 	}
 }
 
-function RoadManager::CleanUp(tile_1, tile_2, progress)
+function RoadTownBoosterManager::CleanUp(tile_1, tile_2, progress)
 {
 	this.towns_used.RemoveValue(tile_1);
 	this.towns_used.RemoveValue(tile_2);
 
-	if (progress==2) {
+	if (progress == 2) {
 		AIRoad.RemoveRoadStation(tile_2);
 	}
 	return true;
@@ -31,23 +28,23 @@ function RoadManager::CleanUp(tile_1, tile_2, progress)
 
 // TODO adjust max distance based on bus speed
 // TODO test mode whole path then build it
-function RoadManager::CreateNewRoute()
+function RoadTownBoosterManager::CreateNewRoute()
 {
 	// Gets the "best" engine type avaliable
-	Info("Trying to build a bus route");
+	Info("Trying to build a local bus route");
 
 	local tile_1 = this.FindSuitableLocation(this.cargo_list[0]);
 	if (tile_1 < 0) { return false };
 
-	local tile_2 = this.FindSuitableLocation(this.cargo_list[0], tile_1, 5000);
+	local tile_2 = this.FindSuitableLocation(this.cargo_list[0], tile_1, 50);
 	if (tile_2 < 0)
 	{
 		this.towns_used.RemoveValue(tile_1);
 		return false;
 	}
 
-	// this.DebugSign(tile_1, "bus stop 1");
-	// this.DebugSign(tile_2, "bus stop 2");
+	place_sign(tile_1, "bus stop 1");
+	place_sign(tile_2, "bus stop 2");
 
 	// Get enough money to work with
 	local costs = AIAccounting();
@@ -79,14 +76,16 @@ function RoadManager::CreateNewRoute()
 	}
 
 	// Build the route for real
-	if (!this.BuildAllAngles(tile_1))
+	local front_tile = CanBuildDriveThroughRoadStation(tile_1);
+	if (!AIRoad.BuildDriveThroughRoadStation(tile_1, front_tile, AIRoad.ROADVEHTYPE_BUS, AIStation.STATION_NEW))
 	{
 		Error("Failed on the first stop at tile " + tile_1);
 		this.CleanUp(tile_1, tile_2, 1)
 		return false;
 	}
 
-	if (!this.BuildAllAngles(tile_2))
+	front_tile = CanBuildDriveThroughRoadStation(tile_2);
+	if (!AIRoad.BuildDriveThroughRoadStation(tile_2, front_tile, AIRoad.ROADVEHTYPE_BUS, AIStation.STATION_NEW))
 	{
 		Error("Failed on the second stop at tile " + tile_2);
 		Athis.CleanUp(tile_1, tile_2, 1)
@@ -119,8 +118,9 @@ function RoadManager::CreateNewRoute()
 	}
 }
 
+
 // TODO merge with aircraft function
-function RoadManager::SelectBestEngine(cargo, distance, maximum_cost=INFINITY)
+function RoadTownBoosterManager::SelectBestEngine(cargo, distance, maximum_cost=INFINITY)
 {
 	if (!this.CanAffordCheapestEngine(cargo)) {return -1}
 
@@ -154,107 +154,85 @@ function RoadManager::SelectBestEngine(cargo, distance, maximum_cost=INFINITY)
 
 }
 
-function RoadManager::BuildAllAngles(tile, station_type=AIStation.STATION_NEW)
-{
-	// this.DebugSign(tile+AIMap.GetTileIndex(0, 1), "tile:"+(tile+AIMap.GetTileIndex(0, 1)))
-	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(0, 1), AIRoad.ROADVEHTYPE_BUS, station_type))
-	{
-		return true;
-	}
-	// this.DebugSign(tile+AIMap.GetTileIndex(1, 0), "tile:"+(tile+AIMap.GetTileIndex(1, 0)))
-	if (AIRoad.BuildDriveThroughRoadStation(tile, tile+AIMap.GetTileIndex(1, 0), AIRoad.ROADVEHTYPE_BUS, station_type))
-	{
-		return true;
-	}
-	return false;
-}
 
 // TODO add in path finding here to make sure you can reach the location
 // x and y size of bus stop is 1 and radius is 3
-function RoadManager::FindSuitableLocation(cargo, center_tile=0, max_distance=INFINITY)
+function RoadTownBoosterManager::FindSuitableLocation(cargo, centre_tile=0, max_distance=INFINITY)
 {
-	local town_list = AITownList();
+    local selected_town = null;
+    if (centre_tile == 0)
+    {
+        // If we don't have a centre tile then we have to look for a new location
+        local town_list = AITownList();
+        town_list.RemoveList(this.towns_used); // Remove all the towns we already used
+        town_list.Valuate(AITown.IsCity); // Only keep cities
+        town_list.KeepValue(1);
+        if (town_list.Count() == 0) { return -1 }
+        town_list.Valuate(AITown.GetPopulation); // Sort on population
+        town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
+        selected_town = town_list.Begin();
+    }
+    else
+    {
+        // We need to find the currently used town for this route
+        selected_town = AITile.GetClosestTown(centre_tile);
+    }
 
-	// Remove all the towns we already used
-	town_list.RemoveList(this.towns_used);
+    local town_centre = AITown.GetLocation(selected_town);
+	place_sign(town_centre, "town centre");
 
-	// Keep large towns not too far away for the vehicles we have
-	if (center_tile != 0)
+    // ============================== Find a suitable location for the bus stop ==============================
+    local list = AITileList();
+    local span = AIMap.DistanceFromEdge(town_centre) <= 15 ? AIMap.DistanceFromEdge(town_centre) - 1 : 15; // Make sure the tiles aren't at the edge of the map
+    list.AddRectangle(town_centre - AIMap.GetTileIndex(span, span), town_centre + AIMap.GetTileIndex(span, span));
+	Debug("Starting to look for a suitable location for a bus stop in town " + selected_town + " with " + list.Count() + " tiles remaining");
+	if (centre_tile != 0)
 	{
-		town_list.Valuate(AITown.GetDistanceSquareToTile, center_tile);
-		// if (this.DEBUG) {OutputList(town_list)}
-		town_list.KeepBelowValue(max_distance);
+		local station_radius = AIStation.GetCoverageRadius(AIStation.STATION_BUS_STOP) * 2;
+		local station_radius_tile = AIMap.GetTileIndex(station_radius, station_radius);
+		list.RemoveRectangle(centre_tile - station_radius_tile, centre_tile + station_radius_tile); // Remove the area around the current station
+		Debug("After removing the current station area, " + list.Count() + " tiles remaining");
+	}
+    // list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, AIStation.GetCoverageRadius(AIStation.STATION_BUS_STOP)); // Sort on acceptance, remove places that don't have acceptance
+    // list.KeepAboveValue(1);
+	// Debug("After removing tiles without acceptance, " + list.Count() + " tiles remaining");
+	// TODO update this so we can use non drive through stations
+    list.Valuate(AITile.HasTransportType, AITile.TRANSPORT_ROAD); // Only keep roads and those without current stations for the stops
+    list.KeepValue(1);
+	Debug("After removing tiles without roads, " + list.Count() + " tiles remaining");
+    list.Valuate(AIRoad.IsRoadStationTile);
+    list.RemoveValue(1);
+	Debug("After removing tiles with stations, " + list.Count() + " tiles remaining");
+
+	list.Valuate(AIMap.DistanceManhattan, town_centre); // Sort on distance to the town centre
+	list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
+
+    // Couldn't find a suitable place for this town, skip to the next
+    if (list.Count() == 0) { Error("Cannot find a suitable station to build in"); return -1 }
+
+    // Walk all the tiles and see if we can build the route at all
+	local good_tile = -1;
+
+	for (local tile = list.Begin(); list.HasNext(); tile = list.Next())
+	{
+		if (CanBuildDriveThroughRoadStation(tile) > 0)
+		{
+		    good_tile = tile;
+			break;
+		}
 	}
 
-	town_list.Valuate(AITown.GetPopulation);
-	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
-	town_list.KeepTop(10);
+	// Did we find a place to build the route on?
+	if (good_tile == -1) { return -1 }
 
-	// Now find 2 suitable towns
-	for (local town = town_list.Begin(); town_list.HasNext(); town = town_list.Next())
-	{
-		// Don't make this a CPU hog
-		Mungo.Sleep(1);
+    Info("Found a good spot for a bus stop in town " + selected_town + " at tile " + good_tile);
 
-		local tile = AITown.GetLocation(town);
-		// this.DebugSign(tile, "tile:" + tile)
-
-		// Make sure the cities aren't at the edge of the map
-		local list = AITileList();
-		local span = AIMap.DistanceFromEdge(tile) <= 15 ? AIMap.DistanceFromEdge(tile) - 1 : 15;
-		list.AddRectangle(tile - AIMap.GetTileIndex(span, span), tile + AIMap.GetTileIndex(span, span));
-
-		// Sort on acceptance, remove places that don't have acceptance
-		list.Valuate(AITile.GetCargoAcceptance, cargo, 1, 1, 3);
-		list.RemoveBelowValue(9);
-
-		// Only keep roads and those without current stations for the stops
-		list.Valuate(AITile.HasTransportType, AITile.TRANSPORT_ROAD);
-		list.KeepValue(1);
-		list.Valuate(AIRoad.IsRoadStationTile);
-		list.RemoveValue(1);
-
-		if (center_tile != 0)
-		{
-			// If we have a tile defined, we don't want to be within 5 tiles of this tile
-			list.Valuate(AITile.GetDistanceSquareToTile, center_tile);
-			list.KeepAboveValue(25);
-		}
-
-		// Couldn't find a suitable place for this town, skip to the next
-		if (list.Count() == 0) { continue }
-		// Walk all the tiles and see if we can build the route at all
-		{
-      		local test = AITestMode();
-			local good_tile = 0;
-
-			for (tile = list.Begin(); list.HasNext(); tile = list.Next())
-			{
-				Mungo.Sleep(1);
-				// this.DebugSign(tile, "tile:"+tile);
-				if (!this.BuildAllAngles(tile)) { continue }
-
-				good_tile = tile;
-				break;
-			}
-
-			// Did we find a place to build the route on?
-			if (good_tile == 0) { continue }
-		}
-
-		Info("Found a good spot for a bus stop in town " + town + " at tile " + tile);
-
-		// Mark the town as used, so we don't use it again
-		this.towns_used.AddItem(town, tile);
-		return tile;
-	}
-
-	Info("Couldn't find a suitable town to build a bus stop in");
-	return -1;
-
+    // Mark the town as used, so we don't use it again
+    this.towns_used.AddItem(selected_town, good_tile);
+    return good_tile;
 }
 
-function RoadManager::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot)
+function RoadTownBoosterManager::BuildNewVehicle(engine, tile_1, tile_2, cargo, depot)
 {
 	// Build a vehicle with orders from tile_1 to tile_2.
 	// The best available aircraft of that time will be bought.

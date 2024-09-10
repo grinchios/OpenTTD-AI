@@ -20,7 +20,9 @@ function Mungo::Init()
 {
 	NameCompany();
 	HandleAutoRenew();
-	this.managers.append(RoadManager());  // Setup Managers
+
+	this.managers = SelectStrategies();
+
 	// this.managers[0].UpgradeVehicles();  // Auto replace
 }
 
@@ -78,7 +80,9 @@ function Mungo::Start()
 	// Let's go on for ever
 	for(local i = 0; true; i++)
 	{
+		Warning("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
 		Warning("Starting iteration: " + i)
+		Warning("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
 
 		// TODO: try and except this to catch errors
 		if (!this.NewRoutes())

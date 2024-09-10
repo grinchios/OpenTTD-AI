@@ -3,13 +3,15 @@
 // TODO new route class with estimated cost, test build and other useful things
 class Manager
 {
-    route_1 = null;  // TODO: change this to a list of pairs
-	route_2 = null;
+    route_1 = AIList();  // TODO: change this to a list of pairs
+	route_2 = AIList();
+	infrastructure = {};  // This is a list of all routes along with their utilised infrastructure
+	towns_used = AIList();
     vehicle_array = [];
+	cargo_list = []
+
     VEHICLE_TYPE = null;
 	STATION_TYPE = null;
-
-    cargo_list = []
 }
 
 function Manager::Init()
@@ -21,8 +23,6 @@ function Manager::Init()
     list.Valuate(AIVehicle.GetVehicleType);
     list.KeepValue(this.VEHICLE_TYPE);
     local vehicle_name;
-    this.route_1 = AIList();
-    this.route_2 = AIList();
 
     for (local i = list.Begin(); list.HasNext(); i = list.Next())
 	{
@@ -32,9 +32,6 @@ function Manager::Init()
         this.route_1.AddItem(i, vehicle_name[0]);
         this.route_2.AddItem(i, vehicle_name[1]);
     }
-
-    this.cargo_list.append(GetCargoID(AICargo.CC_PASSENGERS));
-    this.cargo_list.append(GetCargoID(AICargo.CC_MAIL));
 }
 
 function Manager::SetDepotName(station_id, limit, depot_tile)
@@ -226,8 +223,9 @@ function Manager::GetOrderDistance(tile_1, tile_2)
 function Manager::RoadPathCreator(tile_1, tile_2, depot_tile=-1)
 {
 	local costs = AIAccounting();
+	local pathfinder = RoadPathFinder();
 
-    this.pathfinder.InitializePath([tile_1], [tile_2]);
+    pathfinder.InitializePath([tile_1], [tile_2]);
     local depot_tile = -1;
 	local ret = [];
 
@@ -235,7 +233,7 @@ function Manager::RoadPathCreator(tile_1, tile_2, depot_tile=-1)
 	local path = false;
 	while (path == false)
 	{
-		path = this.pathfinder.FindPath(100);
+		path = pathfinder.FindPath(100);
 		Mungo.Sleep(1);
 	}
 

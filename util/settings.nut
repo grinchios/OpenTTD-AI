@@ -19,3 +19,10 @@ function HandleAutoRenew()
 	AICompany.SetAutoRenewMonths(0);
 	AICompany.SetAutoRenewMoney(100000);
 }
+
+function SelectStrategies()
+{
+	local managers = [];
+	if (GetSetting("enable_road_town_booster") == 1) { managers.append(RoadTownBoosterManager()) }
+	return managers;
+}

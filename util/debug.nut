@@ -14,6 +14,14 @@ function GetDate()
     return "[" + day +"/" + month + "/" + year + "]";
 }
 
+function Debug(message)
+{
+    /*
+    * Log a debug message to the console
+    */
+    if (Debug) AILog.Info(GetDate() + " - " + message);
+}
+
 function Info(message)
 {
     /*
@@ -77,7 +85,7 @@ function place_sign(tile,  message)
     /*
     * Place a sign on a tile
     */
-   if (this.DEBUG)
+   if (DEBUG == 1)
    {
        {
            local mode = AIExecMode();
